@@ -1,0 +1,35 @@
+[tool.poetry]
+name = "ifuntrans"
+version = "0.1.0"
+description = "Ifun Game Localization Translation Service"
+authors = ["BrightXiaoHan <beatmight@gmail.com>"]
+readme = "README.md"
+packages = [
+    { include = "ifuntrans", from = "." },
+]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+fastapi = "^0.100.0"
+httpx = "^0.24.1"
+langcodes = "^3.3.0"
+openai = "^0.27.8"
+deep-translator = {version = "^1.11.4", extras = ["docx", "pdf", "ai"]}
+uvicorn = "^0.23.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.0"
+black = "^23.7.0"
+isort = "^5.12.0"
+autoflake = "^2.2.0"
+pyflyby = "^1.8.5"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+ifuntrans-server = "ifuntrans.cli:main"
+
+[tool.black]
+line-length = 120
