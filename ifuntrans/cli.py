@@ -2,7 +2,7 @@ import argparse
 
 import uvicorn
 
-from ifuntrans.api import app
+from ifuntrans.api import create_app
 
 
 def main():
@@ -11,6 +11,7 @@ def main():
     parser.add_argument("--host", type=str, default="0.0.0.0")
     args = parser.parse_args()
 
+    app = create_app()
     uvicorn.run(app, host=args.host, port=args.port)
 
 
