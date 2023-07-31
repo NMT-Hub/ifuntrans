@@ -33,7 +33,7 @@ def create_app():
     app = FastAPI(
         title=title,
         version=__version__,
-        description=description,
+        description="Ifun Translation API",
         contact=contact,
         license_info=license_info,
     )
