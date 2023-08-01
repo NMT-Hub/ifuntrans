@@ -1,11 +1,10 @@
 """Top-level package for Deep Translator"""
-
-__copyright__ = "Copyright (C) 2020 Nidhal Baccouri"
+import functools
 
 from ifuntrans.translators.baidu import BaiduTranslator
+from ifuntrans.translators.base import BaseTranslator
 from ifuntrans.translators.chatgpt import ChatGptTranslator
 from ifuntrans.translators.deepl import DeeplTranslator
-from ifuntrans.translators.detection import batch_detection, single_detection
 from ifuntrans.translators.google import GoogleTranslator
 from ifuntrans.translators.libre import LibreTranslator
 from ifuntrans.translators.linguee import LingueeTranslator
@@ -17,24 +16,27 @@ from ifuntrans.translators.qcri import QcriTranslator
 from ifuntrans.translators.tencent import TencentTranslator
 from ifuntrans.translators.yandex import YandexTranslator
 
-__author__ = """Han Bing"""
-__email__ = "beatmight@gmail.com"
-__version__ = "1.9.1"
+name2translator = {
+    "google": GoogleTranslator,
+    "deepl": DeeplTranslator,
+    "microsoft": MicrosoftTranslator,
+    "baidu": BaiduTranslator,
+    "tencent": TencentTranslator,
+    "yandex": YandexTranslator,
+    "my_memory": MyMemoryTranslator,
+    "linguee": LingueeTranslator,
+    "pons": PonsTranslator,
+    "libre": LibreTranslator,
+    "qcri": QcriTranslator,
+    "papago": PapagoTranslator,
+    "chatgpt": ChatGptTranslator,
+}
 
-__all__ = [
-    "GoogleTranslator",
-    "PonsTranslator",
-    "LingueeTranslator",
-    "MyMemoryTranslator",
-    "YandexTranslator",
-    "MicrosoftTranslator",
-    "QcriTranslator",
-    "DeeplTranslator",
-    "LibreTranslator",
-    "PapagoTranslator",
-    "ChatGptTranslator",
-    "TencentTranslator",
-    "BaiduTranslator",
-    "single_detection",
-    "batch_detection",
-]
+
+@functools.lru_cache(maxsize=128)
+def get_translator(name: str, source: str, target: str) -> "BaseTranslator":
+    """Get translator by name"""
+    translator = name2translator.get(name)
+    if translator is None:
+        raise ValueError(f"Translator {name} not found")
+    return translator(source=source, target=target)

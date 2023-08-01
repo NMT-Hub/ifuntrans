@@ -3,6 +3,7 @@ from typing import Annotated, List
 import fastapi
 
 from ifuntrans.api import IfunTransModel
+from ifuntrans.translators import get_translator
 
 __all__ = ["translate", "get_avaliable_engines", "get_avaliable_languages"]
 
@@ -52,7 +53,12 @@ def translate(
         ),
     ]
 ) -> TranslationResponse:
-    pass
+    translator = get_translator(request.engine, request.source, request.target)
+    return TranslationResponse(
+        translation=translator.translate(request.text),
+        source=request.source,
+        target=request.target,
+    )
 
 
 def get_avaliable_engines(
