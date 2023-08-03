@@ -1,0 +1,22 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "python",
+      "request": "launch",
+      "name": "Launch",
+      "program": "${input:main}"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "main",
+      "type": "pickString",
+      "options": [
+        "cli.py"
+      ],
+      "description": "Program to run: ",
+      "default": "cli.py"
+    }
+  ]
+}
