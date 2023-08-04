@@ -23,18 +23,18 @@ class TranslationRequest(IfunTransModel):
     """model for a base request that require a source & target language and a text to translate"""
 
     engine: str = "google"
-    source: str = "auto"
-    target: str
-    text: str
+    sourceLan: str = "auto"
+    targetLan: str
+    translateSource: str
 
     model_config = {
         "json_schema_extra": {
             "examples": [
                 {
                     "engine": "google",
-                    "source": "auto",
-                    "target": "en",
-                    "text": "Bonjour le monde",
+                    "sourceLan": "auto",
+                    "targetLan": "en",
+                    "translateSource": "Bonjour le monde",
                 }
             ]
         }
@@ -45,12 +45,12 @@ class TranslationResponse(IfunTransModel):
     """model for a base response that contain a translated text"""
 
     data: str
-    source: str
-    target: str
+    sourceLan: str
+    targetLan: str
 
     model_config = {
         "json_schema_extra": {
-            "examples": [{"code": 200, "message": "请求成功", "data": "Hello world", "source": "fr", "target": "en"}]
+            "examples": [{"code": 200, "message": "请求成功", "data": "Hello World", "sourceLan": "fr", "targetLan": "en"}]
         }
     }
 
@@ -65,11 +65,11 @@ def translate(
         ),
     ]
 ) -> TranslationResponse:
-    translator = get_translator(request.engine, request.source, request.target)
+    translator = get_translator(request.engine, request.sourceLan, request.targetLan)
     return TranslationResponse(
-        data=translator.translate(request.text),
-        source=request.source,
-        target=request.target,
+        data=translator.translate(request.translateSource),
+        source=request.sourceLan,
+        target=request.targetLan,
     )
 
 
