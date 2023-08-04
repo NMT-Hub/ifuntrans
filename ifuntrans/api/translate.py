@@ -1,4 +1,4 @@
-from typing import Annotated, List
+from typing import Annotated, Dict, List
 
 import fastapi
 
@@ -8,7 +8,15 @@ from ifuntrans.translators import get_translator
 __all__ = ["translate", "get_avaliable_engines", "get_avaliable_languages"]
 
 
-SUPPORTED_ENGINES = ["google", "deepl", "bing", "yandex", "baidu", "tencent", "chatgpt"]
+SUPPORTED_ENGINES = {
+    "google": "Google翻译",
+    "deepl": "DeepL",
+    "baidu": "百度翻译",
+    "tencent": "腾讯翻译君",
+    "microsoft": "微软Bing翻译",
+    "yandex": "Yandex",
+    "chatgpt": "ChatGPT",
+}
 
 
 class TranslationRequest(IfunTransModel):
@@ -64,9 +72,10 @@ def translate(
 def get_avaliable_engines(
     source: Annotated[str, fastapi.Query(..., description="source language", example="fr")],
     target: Annotated[str, fastapi.Query(..., description="target language", example="en")],
-) -> List[str]:
+) -> Dict[str, str]:
     return SUPPORTED_ENGINES
 
 
-def get_supported_languages(engine: str = "google"):
-    return {"languages": ["en", "zh", "fr", "de", "ja", "ko", "es", "pt", "it", "ru", "vi", "id", "th", "ms", "ar"]}
+def get_supported_languages(engine: str = "google") -> List[str]:
+    translator = get_translator(engine, "auto", "en")
+    return translator.get_supported_languages()
