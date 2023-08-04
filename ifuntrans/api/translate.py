@@ -44,11 +44,15 @@ class TranslationRequest(IfunTransModel):
 class TranslationResponse(IfunTransModel):
     """model for a base response that contain a translated text"""
 
-    translation: str
+    data: str
     source: str
     target: str
 
-    model_config = {"json_schema_extra": {"examples": [{"translation": "Hello world", "source": "fr", "target": "en"}]}}
+    model_config = {
+        "json_schema_extra": {
+            "examples": [{"code": 200, "message": "请求成功", "data": "Hello world", "source": "fr", "target": "en"}]
+        }
+    }
 
 
 def translate(
@@ -56,26 +60,62 @@ def translate(
         TranslationRequest,
         fastapi.Body(
             ...,
-            embed=True,
+            embed=False,
             examples=TranslationRequest.get_examples(),
         ),
     ]
 ) -> TranslationResponse:
     translator = get_translator(request.engine, request.source, request.target)
     return TranslationResponse(
-        translation=translator.translate(request.text),
+        data=translator.translate(request.text),
         source=request.source,
         target=request.target,
     )
 
 
+class AvaliableEngineResponse(IfunTransModel):
+    """model for a base response that contain a translated text"""
+
+    engines: Dict[str, str]
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "code": 200,
+                    "message": "请求成功",
+                    "engines": {"google": "Google", "baidu": "Baidu", "tencent": "Tencent"},
+                }
+            ]
+        }
+    }
+
+
 def get_avaliable_engines(
-    source: Annotated[str, fastapi.Query(..., description="source language", example="fr")],
-    target: Annotated[str, fastapi.Query(..., description="target language", example="en")],
-) -> Dict[str, str]:
-    return SUPPORTED_ENGINES
+    # source: Annotated[str, fastapi.Query(..., description="source language", example="fr")],
+    # target: Annotated[str, fastapi.Query(..., description="target language", example="en")],
+) -> AvaliableEngineResponse:
+    return AvaliableEngineResponse(engines=SUPPORTED_ENGINES)
 
 
-def get_supported_languages(engine: str = "google") -> List[str]:
+class SupportedLanguagesResponse(IfunTransModel):
+    """model for a base response that contain a translated text"""
+
+    languages: List[str]
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "code": 200,
+                    "message": "请求成功",
+                    "languages": ["en", "fr", "zh-CN", "zh-TW"],
+                }
+            ]
+        }
+    }
+
+
+def get_supported_languages(engine: str = "google") -> SupportedLanguagesResponse:
     translator = get_translator(engine, "auto", "en")
-    return translator.get_supported_languages()
+    return SupportedLanguagesResponse(languages=translator.get_supported_languages())
