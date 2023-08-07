@@ -3,8 +3,9 @@ from typing import Annotated, Dict, List
 import fastapi
 
 from ifuntrans.api import IfunTransModel
-from ifuntrans.api.localization import get_s3_key_from_id, translate_s3_excel_task
+from ifuntrans.api.localization import translate_s3_excel_task
 from ifuntrans.translators import get_translator
+from ifuntrans.utils import get_s3_key_from_id
 
 __all__ = ["translate", "get_avaliable_engines", "get_avaliable_languages"]
 
