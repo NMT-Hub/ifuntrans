@@ -1,21 +1,13 @@
-import os
 import tempfile
 from typing import List
 
-import boto3
 import langcodes
 import pandas as pd
 import requests
-from fastapi import BackgroundTasks
 
-from ifuntrans.api import IfunTransModel
 from ifuntrans.translate import translate
 from ifuntrans.translators.detection import single_detection
-
-AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY")
-AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
-IFUN_CALLBACK_URL = os.environ.get("IFUN_CALLBACK_URL")
-IFUN_DEFAULT_BUCKET = os.environ.get("IFUN_DEFAULT_BUCKET")
+from ifuntrans.utils import IFUN_CALLBACK_URL, S3_DEFAULT_BUCKET, get_s3_client, get_s3_key_from_id
 
 
 def read_excel(file_path: str) -> pd.DataFrame:
@@ -63,11 +55,7 @@ def translate_excel(file_path: str, saved_path: str, to_langs: List[str]):
     writer.save()
 
 
-def get_s3_key_from_id(task_id: str) -> str:
-    return f"{task_id}.xlsx"
-
-
-def callback(task_id: str, status: int, message: str, file_name: str) -> None:
+def callback(task_id: str, status: int, message: str) -> None:
     # status 1: success, 2: failed, 3: in progress
     requests.post(
         IFUN_CALLBACK_URL,
@@ -80,25 +68,21 @@ def callback(task_id: str, status: int, message: str, file_name: str) -> None:
     )
 
 
-
 def translate_s3_excel_task(task_id: str, file_name: str, to_langs: List[str]):
-    s3_client = boto3.client(
-        "s3",
-        aws_access_key_id=AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-    )
-
+    import ipdb
+    ipdb.set_trace()
+    s3_client = get_s3_client()
     # download file
     with tempfile.NamedTemporaryFile(suffix=".xlsx") as temp_file:
         try:
-            s3_client.download_file(IFUN_DEFAULT_BUCKET, file_name, temp_file.name)
+            s3_client.download_file(S3_DEFAULT_BUCKET, file_name, temp_file.name)
             callback(task_id, file_name, 3, "In progress...")
 
             # translate
             translate_excel(temp_file.name, temp_file.name, to_langs)
 
             # upload file
-            s3_client.upload_file(temp_file.name, IFUN_DEFAULT_BUCKET)
+            s3_client.upload_file(temp_file.name, S3_DEFAULT_BUCKET)
 
             callback(task_id, 1, "Success")
         except Exception as e:
