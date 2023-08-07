@@ -4,10 +4,12 @@ from typing import List
 
 import boto3
 import pandas as pd
+import langcodes
 from fastapi import BackgroundTasks
 
 from ifuntrans.api import IfunTransModel
 from ifuntrans.translate import translate
+from ifuntrans.translators.detection import single_detection
 
 AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY")
 AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
@@ -23,6 +25,17 @@ def read_excel(file_path: str) -> pd.DataFrame:
 
     # assert two columns
     assert dataframe.shape[1] == 2
+
+    # skip first two rows
+    dataframe = dataframe.iloc[2:]
+
+    # random select 5 rows to detect language
+    sample = dataframe.sample(5)
+    lang = single_detection(" ".join(sample.iloc[:, 1].tolist()))
+
+    # change column name
+    dataframe.columns = ["ID", langcodes.get(lang).language_name()]
+
     return dataframe
 
 
@@ -31,6 +44,7 @@ def translate_excel(file_path: str, to_langs: List):
 
     lang2df = {}
     for lang in to_langs:
+        language_name = langcodes.get(lang).language_name()
         lang2df[lang] = translate(df, lang)
 
     with pd.ExcelWriter(file_path) as writer:

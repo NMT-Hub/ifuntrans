@@ -5,7 +5,11 @@
       "type": "python",
       "request": "launch",
       "name": "Launch",
-      "program": "${input:main}"
+      "program": "${input:main}",
+      "stopOnEntry": true,
+      "env": {
+        "PYTHONPATH": "${workspaceRoot}"
+      }
     }
   ],
   "inputs": [
@@ -13,10 +17,10 @@
       "id": "main",
       "type": "pickString",
       "options": [
-        "cli.py"
+        "server.py"
       ],
       "description": "Program to run: ",
-      "default": "cli.py"
+      "default": "server.py"
     }
   ]
 }

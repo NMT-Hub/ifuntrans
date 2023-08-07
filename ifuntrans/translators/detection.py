@@ -4,6 +4,7 @@ language detection API
 
 __copyright__ = "Copyright (C) 2020 Nidhal Baccouri"
 
+import os
 from typing import List, Optional, Union
 
 import requests
@@ -18,10 +19,10 @@ config = {
     },
 }
 
+API_KEY = os.environ.get("DETECT_LANGUAGE_API_KEY")
 
-def get_request_body(
-    text: Union[str, List[str]], api_key: str, *args, **kwargs
-):
+
+def get_request_body(text: Union[str, List[str]], *args, **kwargs):
     """
     send a request and return the response body parsed as dictionary
 
@@ -31,7 +32,7 @@ def get_request_body(
     @param api_key: your private API key
 
     """
-    if not api_key:
+    if not API_KEY:
         raise Exception(
             "you need to get an API_KEY for this to work. "
             "Get one for free here: https://detectlanguage.com/documentation"
@@ -42,10 +43,8 @@ def get_request_body(
     else:
         try:
             headers = config["headers"]
-            headers["Authorization"] = headers["Authorization"].format(api_key)
-            response = requests.post(
-                config["url"], json={"q": text}, headers=headers
-            )
+            headers["Authorization"] = headers["Authorization"].format(API_KEY)
+            response = requests.post(config["url"], json={"q": text}, headers=headers)
 
             body = response.json().get("data")
             return body
@@ -55,13 +54,7 @@ def get_request_body(
             raise e
 
 
-def single_detection(
-    text: str,
-    api_key: Optional[str] = None,
-    detailed: bool = False,
-    *args,
-    **kwargs
-):
+def single_detection(text: str, detailed: bool = False, *args, **kwargs):
     """
     function responsible for detecting the language from a text
 
@@ -72,7 +65,7 @@ def single_detection(
     @param detailed: set to True if you want to get detailed
     information about the detection process
     """
-    body = get_request_body(text, api_key)
+    body = get_request_body(text, API_KEY)
     detections = body.get("detections")
     if detailed:
         return detections[0]
@@ -82,9 +75,7 @@ def single_detection(
         return lang
 
 
-def batch_detection(
-    text_list: List[str], api_key: str, detailed: bool = False, *args, **kwargs
-):
+def batch_detection(text_list: List[str], api_key: str, detailed: bool = False, *args, **kwargs):
     """
     function responsible for detecting the language from a text
 
