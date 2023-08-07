@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import List, Optional, Union
 
 import langcodes
+from tqdm import tqdm
 
 from ifuntrans.translators.constants import GOOGLE_LANGUAGES_TO_CODES
 from ifuntrans.translators.exceptions import InvalidSourceOrTargetLanguage, LanguageNotSupportedException
@@ -184,7 +185,7 @@ class BaseTranslator(ABC):
         if not batch:
             raise Exception("Enter your text list that you want to translate")
         arr = []
-        for i, text in enumerate(batch):
+        for i, text in tqdm(enumerate(batch)):
             translated = self.translate(text, **kwargs)
             arr.append(translated)
         return arr

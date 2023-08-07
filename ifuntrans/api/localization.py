@@ -34,7 +34,7 @@ def read_excel(file_path: str) -> pd.DataFrame:
     return dataframe, lang
 
 
-def translate_excel(file_path: str, saved_path: str, to_langs: List[str]):
+def translate_excel(file_path: str, saved_path: str, to_langs: str):
     df, from_lang = read_excel(file_path)
 
     lang2df = {}
@@ -70,6 +70,7 @@ def callback(task_id: str, status: int, message: str) -> None:
 
 def translate_s3_excel_task(task_id: str, file_name: str, to_langs: List[str]):
     import ipdb
+
     ipdb.set_trace()
     s3_client = get_s3_client()
     # download file
