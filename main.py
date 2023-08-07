@@ -10,6 +10,5 @@ def main():
     output_file = "~/Desktop/translated.xlsx"
     localization.translate_excel(test_file, output_file, "en,zh-TW,id,vi,th,pt-BR,ja,ko,ar,tr")
 
-
 if __name__ == "__main__":
     main()
