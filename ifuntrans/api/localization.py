@@ -45,14 +45,14 @@ def translate_excel(file_path: str, saved_path: str, to_langs: List[str]):
             language_name += f" ({territory_name})"
         lang2df[language_name] = translate(df.iloc[:, 1].tolist(), from_lang, lang)
 
-    for language_name, translations in lang2df.items():
-        df[language_name] = translations
-
     # save to excel
     writer = pd.ExcelWriter(saved_path, engine="xlsxwriter")
     df.to_excel(writer, sheet_name="Translation Summary", index=False)
-
-    writer.save()
+    for language_name, translations in lang2df.items():
+        temp_df = df.copy()
+        temp_df["Machine Translation"] = translations
+        temp_df.to_excel(writer, sheet_name=language_name, index=False)
+    writer.close()
 
 
 def callback(task_id: str, status: int, message: str) -> None:
