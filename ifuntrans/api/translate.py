@@ -3,6 +3,7 @@ from typing import Annotated, Dict, List
 import fastapi
 
 from ifuntrans.api import IfunTransModel
+from ifuntrans.api.localization import get_s3_key_from_id, translate_s3_excel_task
 from ifuntrans.translators import get_translator
 
 __all__ = ["translate", "get_avaliable_engines", "get_avaliable_languages"]
@@ -26,6 +27,7 @@ class TranslationRequest(IfunTransModel):
     sourceLan: str = "auto"
     targetLan: str
     translateSource: str
+    type: str = "text"
     id: str = None
 
     model_config = {
@@ -64,11 +66,21 @@ def translate(
             embed=False,
             examples=TranslationRequest.get_examples(),
         ),
-    ]
+    ],
+    background_tasks: fastapi.BackgroundTasks,
 ) -> TranslationResponse:
-    translator = get_translator(request.engine, request.sourceLan, request.targetLan)
-    return TranslationResponse(
-        data=translator.translate(request.translateSource),
-        sourceLan=translator.source,
-        targetLan=request.targetLan,
-    )
+    if request.type == "text":
+        translator = get_translator(request.engine, request.sourceLan, request.targetLan)
+        return TranslationResponse(
+            data=translator.translate(request.translateSource),
+            sourceLan=translator.source,
+            targetLan=request.targetLan,
+        )
+    else:
+        to_langs = request.targetLan.split(",")
+        background_tasks.add_task(translate_s3_excel_task, request.id, request.data, to_langs)
+        return TranslationResponse(
+            data=get_s3_key_from_id(request.id),
+            sourceLan="",
+            targetLan="",
+        )

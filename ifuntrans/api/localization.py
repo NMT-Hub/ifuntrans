@@ -6,7 +6,9 @@ import boto3
 import langcodes
 import pandas as pd
 import requests
+from fastapi import BackgroundTasks
 
+from ifuntrans.api import IfunTransModel
 from ifuntrans.translate import translate
 from ifuntrans.translators.detection import single_detection
 
@@ -61,19 +63,25 @@ def translate_excel(file_path: str, saved_path: str, to_langs: List[str]):
     writer.save()
 
 
-def callback(task_id: str, status: str, message: str, file_name: str) -> None:
+def get_s3_key_from_id(task_id: str) -> str:
+    return f"{task_id}.xlsx"
+
+
+def callback(task_id: str, status: int, message: str, file_name: str) -> None:
+    # status 1: success, 2: failed, 3: in progress
     requests.post(
         IFUN_CALLBACK_URL,
         json={
             "id": task_id,
             "status": status,
             "message": message,
-            "translateTarget": file_name,
+            "translateTarget": get_s3_key_from_id(task_id),
         },
     )
 
 
-def translate_s3_excel(file_name: str, to_langs: List[str]):
+
+def translate_s3_excel_task(task_id: str, file_name: str, to_langs: List[str]):
     s3_client = boto3.client(
         "s3",
         aws_access_key_id=AWS_ACCESS_KEY_ID,
@@ -82,12 +90,16 @@ def translate_s3_excel(file_name: str, to_langs: List[str]):
 
     # download file
     with tempfile.NamedTemporaryFile(suffix=".xlsx") as temp_file:
-        s3_client.download_file(IFUN_DEFAULT_BUCKET, file_name, temp_file.name)
+        try:
+            s3_client.download_file(IFUN_DEFAULT_BUCKET, file_name, temp_file.name)
+            callback(task_id, file_name, 3, "In progress...")
 
-        # translate
-        translate_excel(temp_file.name, temp_file.name, to_langs)
+            # translate
+            translate_excel(temp_file.name, temp_file.name, to_langs)
 
-        # upload file
-        s3_client.upload_file(temp_file.name, IFUN_DEFAULT_BUCKET, file_name)
+            # upload file
+            s3_client.upload_file(temp_file.name, IFUN_DEFAULT_BUCKET)
 
-        callback(file_name, "200", "success", file_name)
+            callback(task_id, 1, "Success")
+        except Exception as e:
+            callback(task_id, 2, str(e))
