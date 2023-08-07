@@ -68,8 +68,8 @@ def translate(
     translator = get_translator(request.engine, request.sourceLan, request.targetLan)
     return TranslationResponse(
         data=translator.translate(request.translateSource),
-        source=request.sourceLan,
-        target=request.targetLan,
+        sourceLan=translator.source,
+        targetLan=request.targetLan,
     )
 
 

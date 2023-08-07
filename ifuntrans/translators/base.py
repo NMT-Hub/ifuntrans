@@ -4,11 +4,10 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import List, Optional, Union
 
+import langcodes
+
 from ifuntrans.translators.constants import GOOGLE_LANGUAGES_TO_CODES
-from ifuntrans.translators.exceptions import (
-    InvalidSourceOrTargetLanguage,
-    LanguageNotSupportedException,
-)
+from ifuntrans.translators.exceptions import InvalidSourceOrTargetLanguage, LanguageNotSupportedException
 
 
 class BaseTranslator(ABC):
@@ -79,19 +78,33 @@ class BaseTranslator(ABC):
             elif language in self._languages.keys():
                 yield self._languages[language]
             else:
-                raise LanguageNotSupportedException(
-                    language,
-                    message=f"No support for the provided language.\n"
-                    f"Please select on of the supported languages:\n"
-                    f"{self._languages}",
-                )
+                if langcodes.tag_is_valid(language):
+                    language = langcodes.get(language)
+                else:
+                    try:
+                        language = langcodes.find(language)
+                    except:
+                        raise LanguageNotSupportedException(
+                            language,
+                            message=f"No support for the provided language.\n"
+                            f"Please select on of the supported languages:\n"
+                            f"{self._languages}",
+                        )
+
+                language = langcodes.closest_supported_match(language, self._languages.values())
+                if not language:
+                    raise LanguageNotSupportedException(
+                        language,
+                        message=f"No support for the provided language.\n"
+                        f"Please select on of the supported languages:\n"
+                        f"{self._languages}",
+                    )
+                yield language
 
     def _same_source_target(self) -> bool:
         return self._source == self._target
 
-    def get_supported_languages(
-        self, as_dict: bool = False, **kwargs
-    ) -> Union[list, dict]:
+    def get_supported_languages(self, as_dict: bool = False, **kwargs) -> Union[list, dict]:
         """
         return the supported languages by the Google translator
         @param as_dict: if True, the languages will be returned as a dictionary
@@ -106,11 +119,7 @@ class BaseTranslator(ABC):
         @param language: a string for 1 language
         @return: bool or raise an Exception
         """
-        if (
-            language == "auto"
-            or language in self._languages.keys()
-            or language in self._languages.values()
-        ):
+        if language == "auto" or language in self._languages.keys() or language in self._languages.values():
             return True
         else:
             return False
