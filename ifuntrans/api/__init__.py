@@ -1,4 +1,4 @@
-import pydantic
+import fastapi
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
@@ -26,6 +26,17 @@ class IfunTransModel(BaseModel):
     }
 
 
+async def redirect_trailing_slash(request: fastapi.Request, call_next):
+    if request.url.path.endswith("/") and not request.url.path == "/":
+        # Remove the trailing slash and create a new URL without it
+        new_url = str(request.url)[:-1]
+        # Create a redirect response to the new URL
+        return RedirectResponse(url=new_url)
+    # If there's no trailing slash or it's the root "/", proceed as usual
+    response = await call_next(request)
+    return response
+
+
 def home():
     """redirect user to the swagger api"""
     return RedirectResponse("/docs")
@@ -44,6 +55,7 @@ def create_app():
 
     import ifuntrans.api.translate as translate
 
+    app.middleware("http")(redirect_trailing_slash)
     app.get("/", summary="SwaggerUI (当前页面)")(home)
     app.post(
         "/translate",
@@ -52,4 +64,5 @@ def create_app():
     )(translate.translate)
     app.get("/translate/supported_languages", summary="获得某个引擎支持的语种编码")(translate.get_supported_languages)
     app.get("/translate/avaliable_engines", summary="获得所有支持的引擎名称")(translate.get_avaliable_engines)
+
     return app

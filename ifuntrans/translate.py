@@ -8,11 +8,14 @@ import langcodes
 from ifuntrans.translators import GoogleTranslator
 
 
-def translate(texts: List[str], from_lang: str, to_lang: str, prompt="") -> List[str]:
+def chatgpt_post_edit(texts: List[str], from_lang: str, to_lang: str, prompt="") -> List[str]:
+    pass
+
+
+def translate(texts: List[str], from_lang: str, to_lang: str) -> List[str]:
     """
     Translate the given dataframe to the given languages.
     :param texts: The texts to translate.
-    :param prompt: The prompt to show.
     :param to_langs: The languages to translate to.
     :return: The translated dataframe.
     """
