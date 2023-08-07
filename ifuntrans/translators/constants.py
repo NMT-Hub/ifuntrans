@@ -13,6 +13,8 @@ BAIDU_APPID_ENV_VAR = "BAIDU_APPID"
 BAIDU_APPKEY_ENV_VAR = "BAIDU_APPKEY"
 
 
+GOOGLE_TRANSLATE_PROXY_VAR = "GOOGLE_TRANSLATE_PROXY"
+
 BASE_URLS = {
     "GOOGLE_TRANSLATE": "https://translate.google.com/m",
     "PONS": "https://en.pons.com/translate/",

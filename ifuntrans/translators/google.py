@@ -4,18 +4,15 @@ google translator API
 
 __copyright__ = "Copyright (C) 2020 Nidhal Baccouri"
 
+import os
 from typing import List, Optional
 
 import requests
 from bs4 import BeautifulSoup
 
 from ifuntrans.translators.base import BaseTranslator
-from ifuntrans.translators.constants import BASE_URLS
-from ifuntrans.translators.exceptions import (
-    RequestError,
-    TooManyRequests,
-    TranslationNotFound,
-)
+from ifuntrans.translators.constants import BASE_URLS, GOOGLE_TRANSLATE_PROXY_VAR
+from ifuntrans.translators.exceptions import RequestError, TooManyRequests, TranslationNotFound
 from ifuntrans.translators.validate import is_empty, is_input_valid, request_failed
 
 
@@ -28,8 +25,12 @@ class GoogleTranslator(BaseTranslator):
         self,
         source: str = "auto",
         target: str = "en",
+        # proxies: Optional[dict] = {
+        #     "http": os.environ.get(GOOGLE_TRANSLATE_PROXY_VAR),
+        #     "https": os.environ.get(GOOGLE_TRANSLATE_PROXY_VAR),
+        # },
         proxies: Optional[dict] = None,
-        **kwargs
+        **kwargs,
     ):
         """
         @param source: source language to translate from
@@ -43,7 +44,7 @@ class GoogleTranslator(BaseTranslator):
             element_tag="div",
             element_query={"class": "t0"},
             payload_key="q",  # key of text in the url
-            **kwargs
+            **kwargs,
         )
 
         self._alt_element_query = {"class": "result-container"}
@@ -64,9 +65,7 @@ class GoogleTranslator(BaseTranslator):
             if self.payload_key:
                 self._url_params[self.payload_key] = text
 
-            response = requests.get(
-                self._base_url, params=self._url_params, proxies=self.proxies
-            )
+            response = requests.get(self._base_url, params=self._url_params, proxies=self.proxies)
             if response.status_code == 429:
                 raise TooManyRequests()
 
@@ -83,17 +82,9 @@ class GoogleTranslator(BaseTranslator):
                 if not element:
                     raise TranslationNotFound(text)
             if element.get_text(strip=True) == text.strip():
-                to_translate_alpha = "".join(
-                    ch for ch in text.strip() if ch.isalnum()
-                )
-                translated_alpha = "".join(
-                    ch for ch in element.get_text(strip=True) if ch.isalnum()
-                )
-                if (
-                    to_translate_alpha
-                    and translated_alpha
-                    and to_translate_alpha == translated_alpha
-                ):
+                to_translate_alpha = "".join(ch for ch in text.strip() if ch.isalnum())
+                translated_alpha = "".join(ch for ch in element.get_text(strip=True) if ch.isalnum())
+                if to_translate_alpha and translated_alpha and to_translate_alpha == translated_alpha:
                     self._url_params["tl"] = self._target
                     if "hl" not in self._url_params:
                         return text.strip()
