@@ -62,7 +62,5 @@ def create_app():
         summary="翻译接口, 传递引擎名称，翻译源语言，翻译目标语言，翻译内容，返回翻译结果",
         responses={200: translate.TranslationResponse.get_example()},
     )(translate.translate)
-    app.get("/translate/supported_languages", summary="获得某个引擎支持的语种编码")(translate.get_supported_languages)
-    app.get("/translate/avaliable_engines", summary="获得所有支持的引擎名称")(translate.get_avaliable_engines)
 
     return app
