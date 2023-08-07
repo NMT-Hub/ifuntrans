@@ -1,18 +1,19 @@
-import functools
 import os
+import tempfile
 from typing import List
 
 import boto3
 import langcodes
 import pandas as pd
-from fastapi import BackgroundTasks
+import requests
 
-from ifuntrans.api import IfunTransModel
 from ifuntrans.translate import translate
 from ifuntrans.translators.detection import single_detection
 
 AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY")
 AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
+IFUN_CALLBACK_URL = os.environ.get("IFUN_CALLBACK_URL")
+IFUN_DEFAULT_BUCKET = os.environ.get("IFUN_DEFAULT_BUCKET")
 
 
 def read_excel(file_path: str) -> pd.DataFrame:
@@ -60,37 +61,33 @@ def translate_excel(file_path: str, saved_path: str, to_langs: List[str]):
     writer.save()
 
 
-@functools.cache
-def get_s3_client() -> boto3.client:
-    return boto3.client(
+def callback(task_id: str, status: str, message: str, file_name: str) -> None:
+    requests.post(
+        IFUN_CALLBACK_URL,
+        json={
+            "id": task_id,
+            "status": status,
+            "message": message,
+            "translateTarget": file_name,
+        },
+    )
+
+
+def translate_s3_excel(file_name: str, to_langs: List[str]):
+    s3_client = boto3.client(
         "s3",
         aws_access_key_id=AWS_ACCESS_KEY_ID,
         aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
     )
 
+    # download file
+    with tempfile.NamedTemporaryFile(suffix=".xlsx") as temp_file:
+        s3_client.download_file(IFUN_DEFAULT_BUCKET, file_name, temp_file.name)
 
-def upload_file(
-    task_id: str, bucket_name: str, object_name: str, to_langs: List[str], background_tasks: BackgroundTasks
-) -> IfunTransModel:
-    # download file from s3
-    s3_client = get_s3_client()
-    s3_client.download_file(bucket_name, object_name, f"/tmp/{task_id}.zip")
+        # translate
+        translate_excel(temp_file.name, temp_file.name, to_langs)
 
+        # upload file
+        s3_client.upload_file(temp_file.name, IFUN_DEFAULT_BUCKET, file_name)
 
-class ProgressModel(IfunTransModel):
-    task_id: str
-    progress: float
-
-
-def progress(task_id) -> ProgressModel:
-    pass
-
-
-class DownloadFileModel(IfunTransModel):
-    task_id: str
-    url: str
-    expire_time: str
-
-
-def download_file(task_id) -> DownloadFileModel:
-    pass
+        callback(file_name, "200", "success", file_name)
