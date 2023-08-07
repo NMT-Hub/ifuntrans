@@ -3,8 +3,8 @@ import os
 from typing import List
 
 import boto3
-import pandas as pd
 import langcodes
+import pandas as pd
 from fastapi import BackgroundTasks
 
 from ifuntrans.api import IfunTransModel
@@ -36,20 +36,25 @@ def read_excel(file_path: str) -> pd.DataFrame:
     # change column name
     dataframe.columns = ["ID", langcodes.get(lang).language_name()]
 
-    return dataframe
+    return dataframe, lang
 
 
-def translate_excel(file_path: str, to_langs: List):
-    df = read_excel(file_path)
+def translate_excel(file_path: str, saved_path: str, to_langs: List[str]):
+    df, from_lang = read_excel(file_path)
 
     lang2df = {}
-    for lang in to_langs:
+    for lang in to_langs.split(","):
         language_name = langcodes.get(lang).language_name()
-        lang2df[lang] = translate(df, lang)
+        territory_name = langcodes.get(lang).territory_name()
+        if territory_name:
+            language_name += f" ({territory_name})"
+        lang2df[language_name] = translate(df.iloc[:, 1].tolist(), from_lang, lang)
 
-    with pd.ExcelWriter(file_path) as writer:
-        for lang, df in lang2df.items():
-            df.to_excel(writer, sheet_name=lang)
+    for language_name, translations in lang2df.items():
+        df[language_name] = translations
+
+    # save to excel
+    df.to_excel(saved_path, index=False)
 
 
 @functools.cache

@@ -5,7 +5,7 @@ language detection API
 __copyright__ = "Copyright (C) 2020 Nidhal Baccouri"
 
 import os
-from typing import List, Optional, Union
+from typing import List, Union
 
 import requests
 from requests.exceptions import HTTPError
@@ -19,7 +19,7 @@ config = {
     },
 }
 
-API_KEY = os.environ.get("DETECT_LANGUAGE_API_KEY")
+API_KEY = os.environ.get("DETECT_LANGUAGE_API_KEY", "9d84b1b3a2eaf1fa1924a6007588e4d2")
 
 
 def get_request_body(text: Union[str, List[str]], *args, **kwargs):
@@ -75,7 +75,7 @@ def single_detection(text: str, detailed: bool = False, *args, **kwargs):
         return lang
 
 
-def batch_detection(text_list: List[str], api_key: str, detailed: bool = False, *args, **kwargs):
+def batch_detection(text_list: List[str], detailed: bool = False, *args, **kwargs):
     """
     function responsible for detecting the language from a text
 
@@ -84,7 +84,7 @@ def batch_detection(text_list: List[str], api_key: str, detailed: bool = False, 
     @param detailed: set to True if you want to
     get detailed information about the detection process
     """
-    body = get_request_body(text_list, api_key)
+    body = get_request_body(text_list, API_KEY)
     detections = body.get("detections")
     res = [obj[0] for obj in detections]
     if detailed:
