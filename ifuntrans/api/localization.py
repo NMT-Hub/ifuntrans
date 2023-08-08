@@ -68,23 +68,22 @@ def callback(task_id: str, status: int, message: str) -> None:
     )
 
 
-def translate_s3_excel_task(task_id: str, file_name: str, to_langs: List[str]):
-    import ipdb
-
-    ipdb.set_trace()
+def translate_s3_excel_task(task_id: str, file_name: str, to_langs: str):
     s3_client = get_s3_client()
     # download file
     with tempfile.NamedTemporaryFile(suffix=".xlsx") as temp_file:
         try:
             s3_client.download_file(S3_DEFAULT_BUCKET, file_name, temp_file.name)
-            callback(task_id, file_name, 3, "In progress...")
+            callback(task_id, 3, "In progress...")
 
             # translate
             translate_excel(temp_file.name, temp_file.name, to_langs)
 
             # upload file
-            s3_client.upload_file(temp_file.name, S3_DEFAULT_BUCKET)
+            s3_file_key = get_s3_key_from_id(task_id)
+            s3_client.upload_file(temp_file.name, S3_DEFAULT_BUCKET, s3_file_key)
 
             callback(task_id, 1, "Success")
         except Exception as e:
             callback(task_id, 2, str(e))
+            raise e

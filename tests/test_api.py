@@ -1,16 +1,14 @@
+import datetime
 import os
 import tempfile
-import time
 from unittest.mock import patch
 
-import botocore
 import pandas as pd
 import pytest
 import requests
 from fastapi.testclient import TestClient
 
 import ifuntrans.api.translate as translate
-import ifuntrans.api.localization as localization
 import ifuntrans.utils as utils
 from ifuntrans.api import create_app
 
@@ -60,35 +58,34 @@ def test_localization(client):
     task_id = "test_id"
     s3 = utils.get_s3_client()
 
-    s3_source_file = "ai-translate/source/test.xlsx"
+    date_str = datetime.datetime.now().strftime("%Y%m%d")
+    s3_source_file = f"ai-translate/source/{date_str}/_test.xlsx"
     # upload sample file
     s3.upload_file(test_file, utils.S3_DEFAULT_BUCKET, s3_source_file)
 
+    langs = "en,zh-TW"
     request = {
         "id": task_id,
         "type": "doc",
-        "targetLan": "en,zh-TW",
-        "translateSource": "test.xlsx",
+        "targetLan": langs,
+        "translateSource": s3_source_file,
     }
     response = client.post("/translate", json=request).json()
     response_model = translate.TranslationResponse(**response)
     assert response_model.code == 200
 
-    # Mock background task
-    file_key = utils.get_s3_key_from_id(task_id)
-
-    localization.translate_s3_excel_task(
-        task_id,
-        s3_source_file,
-        "en,zh-TW",
-    )
-
+    s3_target_file = f"ai-translate/target/{date_str}/{task_id}.xlsx"
     with tempfile.NamedTemporaryFile(suffix=".xlsx") as temp:
         s3.download_file(
             utils.S3_DEFAULT_BUCKET,
-            file_key,
+            s3_target_file,
             temp.name,
         )
 
-        df = pd.read_excel(temp.name)
-        assert len(df.columns.tolist()) == 4
+        df = pd.read_excel(temp.name, sheet_name=None)
+        # assert num sheet equals to target language + 1
+        assert len(df) == len(langs.split(",")) + 1
+
+    # delete file from s3
+    s3.delete_object(Bucket=utils.S3_DEFAULT_BUCKET, Key=s3_source_file)
+    s3.delete_object(Bucket=utils.S3_DEFAULT_BUCKET, Key=s3_target_file)

@@ -1,3 +1,4 @@
+import datetime
 import os
 
 import boto3
@@ -9,7 +10,8 @@ S3_DEFAULT_BUCKET = os.environ.get("S3_DEFAULT_BUCKET")
 
 
 def get_s3_key_from_id(task_id: str) -> str:
-    return f"ai-translate/target/{task_id}.xlsx"
+    date_str = datetime.datetime.now().strftime("%Y%m%d")
+    return f"ai-translate/target/{date_str}/{task_id}.xlsx"
 
 
 def get_s3_client():

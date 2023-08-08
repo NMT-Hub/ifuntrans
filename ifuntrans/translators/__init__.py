@@ -6,7 +6,6 @@ from ifuntrans.translators.base import BaseTranslator
 from ifuntrans.translators.chatgpt import ChatGptTranslator
 from ifuntrans.translators.deepl import DeeplTranslator
 from ifuntrans.translators.google import GoogleTranslator
-from ifuntrans.translators.libre import LibreTranslator
 from ifuntrans.translators.linguee import LingueeTranslator
 from ifuntrans.translators.microsoft import MicrosoftTranslator
 from ifuntrans.translators.mymemory import MyMemoryTranslator
@@ -26,7 +25,6 @@ name2translator = {
     "my_memory": MyMemoryTranslator,
     "linguee": LingueeTranslator,
     "pons": PonsTranslator,
-    "libre": LibreTranslator,
     "qcri": QcriTranslator,
     "papago": PapagoTranslator,
     "chatgpt": ChatGptTranslator,

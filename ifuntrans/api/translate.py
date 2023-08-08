@@ -78,8 +78,7 @@ def translate(
             targetLan=request.targetLan,
         )
     else:
-        to_langs = request.targetLan.split(",")
-        background_tasks.add_task(translate_s3_excel_task, request.id, request.data, to_langs)
+        background_tasks.add_task(translate_s3_excel_task, request.id, request.translateSource, request.targetLan)
         return TranslationResponse(
             data=get_s3_key_from_id(request.id),
             sourceLan="",
