@@ -2,12 +2,30 @@
 Translate all in one.
 """
 from typing import List
+from unittest.mock import DEFAULT
 
 import langcodes
 from opencc import OpenCC
 
 from ifuntrans.translators import GoogleTranslator
 
+DEFAULT_PROMPT = """
+现在我要对一个游戏中的文本进行翻译，现在我通过google翻译得到了机翻译文，但是该译文不太完美，请根据我的要对该译文进行修改，使其更加完美。
+1.中文句式一致的，其他语言麻烦尽量保持翻译句式一致。
+2.大小写问题，建筑，工具，按键，名字等等需要首字母大写（针对有字母的语言）
+3.句子首字母保持大写
+4.罗马数字写法统一，比如不要Ⅱ和II都用，直接用Ⅱ
+5.如果有特殊符号，需要保留原格式，不能改变字符或者添加空格。如`{0}`，`[color=#FFFFFF]`
+6.特殊翻译最好使用缩写，比如攻击力ATK，防御力DEF，生命HP，经验EXP
+
+修改结果请以json格式提交，格式如下：
+```
+[
+    "修改后译文1"
+    "修改后译文2"
+]
+```
+"""
 
 def chatgpt_post_edit(texts: List[str], from_lang: str, to_lang: str, prompt="") -> List[str]:
     pass
