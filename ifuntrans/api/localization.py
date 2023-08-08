@@ -1,5 +1,4 @@
 import tempfile
-from typing import List
 
 import langcodes
 import pandas as pd
@@ -57,9 +56,9 @@ def translate_excel(file_path: str, saved_path: str, to_langs: str):
     writer.close()
 
 
-def callback(task_id: str, status: int, message: str) -> None:
+def callback(task_id: int, status: int, message: str) -> None:
     # status 1: success, 2: failed, 3: in progress
-    requests.post(
+    response = requests.post(
         IFUN_CALLBACK_URL,
         json={
             "id": task_id,
@@ -68,6 +67,7 @@ def callback(task_id: str, status: int, message: str) -> None:
             "translateTarget": get_s3_key_from_id(task_id),
         },
     )
+    response.raise_for_status()
 
 
 def translate_s3_excel_task(task_id: str, file_name: str, to_langs: str):

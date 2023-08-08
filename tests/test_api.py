@@ -55,7 +55,7 @@ def test_microsoft_successful_post_mock(mock_request_post):
 
 
 def test_localization(client):
-    task_id = "test_id"
+    task_id = 12345
     s3 = utils.get_s3_client()
 
     date_str = datetime.datetime.now().strftime("%Y%m%d")
