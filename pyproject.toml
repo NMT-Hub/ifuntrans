@@ -4,9 +4,6 @@ version = "0.1.0"
 description = "Ifun Game Localization Translation Service"
 authors = ["BrightXiaoHan <beatmight@gmail.com>"]
 readme = "README.md"
-packages = [
-    { include = "ifuntrans", from = "." },
-]
 
 [tool.poetry.dependencies]
 python = "^3.9"

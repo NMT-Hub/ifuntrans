@@ -2,16 +2,7 @@
 FROM python:3.9-slim-buster
 
 # Install Poetry
-RUN curl -sSL https://install.python-poetry.org | python -
-
-# Make sure that the PATH includes the Poetry installation so we can run it
-ENV PATH="$POETRY_HOME/bin:$PATH"
-
-# Disable the creation of .pyc files
-ENV PYTHONDONTWRITEBYTECODE=1
-
-# Turn off buffering for easier container logging
-ENV PYTHONUNBUFFERED=1
+RUN pip install --no-cache-dir poetry
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -21,7 +12,7 @@ COPY pyproject.toml poetry.lock ./
 
 # Install the project dependencies
 RUN poetry config virtualenvs.create false \
-  && poetry install --no-interaction --no-ansi
+  && poetry install --no-interaction --no-ansi --no-dev
 
 # Copy the rest of your project files into the Docker image
 COPY . .
