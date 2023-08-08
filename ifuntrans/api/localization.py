@@ -47,6 +47,8 @@ def translate_excel(file_path: str, saved_path: str, to_langs: str):
 
     # save to excel
     writer = pd.ExcelWriter(saved_path, engine="xlsxwriter")
+    for language_name, translations in lang2df.items():
+        df[language_name] = translations
     df.to_excel(writer, sheet_name="Translation Summary", index=False)
     for language_name, translations in lang2df.items():
         temp_df = df.copy()
