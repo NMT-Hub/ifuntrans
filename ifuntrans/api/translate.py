@@ -29,7 +29,7 @@ class TranslationRequest(IfunTransModel):
     targetLan: str
     translateSource: str
     type: str = "text"
-    id: str = None
+    id: int = 0
 
     model_config = {
         "json_schema_extra": {
