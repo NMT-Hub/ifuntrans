@@ -185,7 +185,16 @@ class BaseTranslator(ABC):
         if not batch:
             raise Exception("Enter your text list that you want to translate")
         arr = []
-        for i, text in tqdm(enumerate(batch)):
-            translated = self.translate(text, **kwargs)
+        i = 0
+        progress_bar = tqdm(total=len(batch), desc="Translating...")
+        while i < len(batch):
+            text = batch[i]
+            try:
+                translated = self.translate(text, **kwargs)
+            except Exception as e:
+                continue
             arr.append(translated)
+            i += 1
+            progress_bar.update(1)
+
         return arr
