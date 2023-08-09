@@ -17,6 +17,7 @@ revchatgpt = "^6.8.6"
 boto3 = "^1.28.18"
 pandas = {extras = ["excel"], version = "^2.0.3"}
 tqdm = "^4.65.0"
+guidance = "^0.0.64"
 opencc = "^1.1.6"
 
 [tool.poetry.group.dev.dependencies]
