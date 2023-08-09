@@ -1,6 +1,7 @@
 """
 Translate all in one.
 """
+import openai
 from typing import List
 from unittest.mock import DEFAULT
 
@@ -18,17 +19,18 @@ DEFAULT_PROMPT = """
 5.如果有特殊符号，需要保留原格式，不能改变字符或者添加空格。如`{0}`，`[color=#FFFFFF]`
 6.特殊翻译最好使用缩写，比如攻击力ATK，防御力DEF，生命HP，经验EXP
 
-修改结果请以json格式提交，格式如下：
-```
-[
-    "修改后译文1"
-    "修改后译文2"
-]
-```
+修改结果请以表格的形式提交:
+|原文|译文|译文存在的问题|修改后译文|
 """
 
 def chatgpt_post_edit(texts: List[str], from_lang: str, to_lang: str, prompt="") -> List[str]:
-    pass
+    """
+    Post edit with chatgpt.
+    """
+    if not prompt:
+        prompt = DEFAULT_PROMPT
+    prompt = prompt.format(from_lang=from_lang, to_lang=to_lang)
+    return chatgpt(prompt, texts)
 
 
 opencc_mapping = {
