@@ -26,6 +26,11 @@ class IfunTransModel(BaseModel):
     }
 
 
+async def logging_request_data(request: fastapi.Request):
+    body = await request.body()
+    print(f"request body: {body}")
+
+
 async def redirect_trailing_slash(request: fastapi.Request, call_next):
     if request.url.path.endswith("/") and not request.url.path == "/":
         # Remove the trailing slash and create a new URL without it
@@ -61,6 +66,7 @@ def create_app():
         "/translate",
         summary="翻译接口, 传递引擎名称，翻译源语言，翻译目标语言，翻译内容，返回翻译结果",
         responses={200: translate.TranslationResponse.get_example()},
+        dependencies=[fastapi.Depends(logging_request_data)],
     )(translate.translate)
 
     return app
