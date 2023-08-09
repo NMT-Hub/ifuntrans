@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Optional
 
 import fastapi
 import pydantic
@@ -25,9 +25,9 @@ SUPPORTED_ENGINES = {
 class TranslationRequest(IfunTransModel):
     """model for a base request that require a source & target language and a text to translate"""
 
-    engine: str = "google"
+    engine: Optional[str] = "google"
     sourceLan: str = "auto"
-    targetLan: str
+    targetLan: str = "en"
     translateSource: str
     type: str = "text"
     id: int = 0
@@ -50,6 +50,12 @@ class TranslationRequest(IfunTransModel):
         if not sourceLan:
             return "auto"
         return sourceLan
+
+    @pydantic.validator("engine")
+    def check_engine(cls, engine: str):
+        if not engine:
+            return "google"
+        return engine
 
 
 class TranslationResponse(IfunTransModel):
