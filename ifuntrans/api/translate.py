@@ -1,6 +1,7 @@
 from typing import Annotated
 
 import fastapi
+import pydantic
 
 from ifuntrans.api import IfunTransModel
 from ifuntrans.api.localization import translate_s3_excel_task
@@ -43,6 +44,12 @@ class TranslationRequest(IfunTransModel):
             ]
         }
     }
+
+    @pydantic.validator("sourceLan")
+    def check_age(cls, sourceLan: str):
+        if not sourceLan:
+            return "auto"
+        return sourceLan
 
 
 class TranslationResponse(IfunTransModel):
