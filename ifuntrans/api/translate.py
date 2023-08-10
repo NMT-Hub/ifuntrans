@@ -13,11 +13,11 @@ __all__ = ["translate", "get_avaliable_engines", "get_avaliable_languages"]
 
 SUPPORTED_ENGINES = {
     "google": "Google翻译",
-    "deepl": "DeepL",
-    "baidu": "百度翻译",
-    "tencent": "腾讯翻译君",
-    "microsoft": "微软Bing翻译",
-    "yandex": "Yandex",
+    # "deepl": "DeepL",
+    # "baidu": "百度翻译",
+    # "tencent": "腾讯翻译君",
+    # "microsoft": "微软Bing翻译",
+    # "yandex": "Yandex",
     "chatgpt": "ChatGPT",
 }
 
@@ -55,7 +55,9 @@ class TranslationRequest(IfunTransModel):
     def check_engine(cls, engine: str):
         if not engine:
             return "google"
-        return "google"  # TODO
+        if engine not in SUPPORTED_ENGINES:
+            return "google"
+        return engine
 
 
 class TranslationResponse(IfunTransModel):
