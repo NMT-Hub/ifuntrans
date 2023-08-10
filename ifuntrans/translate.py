@@ -7,6 +7,7 @@ import langcodes
 from opencc import OpenCC
 
 from ifuntrans.translators import GoogleTranslator
+from ifuntrans.characters import get_need_translate_func
 
 opencc_mapping = {
     "s2hk": OpenCC("s2hk.json"),
@@ -66,20 +67,9 @@ def translate(texts: List[str], from_lang: str, to_lang: str) -> List[str]:
     if from_lang_code.language == "zh" and to_lang_code.language == "zh":
         return [opencc_convert(text, from_lang_code, to_lang_code) for text in texts]
 
-    need_translate_mask = []
-    if langcodes.closest_supported_match(from_lang, ["en"]) is not None:
-        need_translate_mask = [True] * len(texts)
-
-    else:
-        # if only contains ascii characters and number of word is less than 2, then don't translate
-        for text in texts:
-            if text.isascii() and len(text.split()) <= 2:
-                need_translate_mask.append(False)
-            else:
-                need_translate_mask.append(True)
-
+    need_translate_func = get_need_translate_func(from_lang)
+    need_translate_mask = [need_translate_func(text) for text in texts]
     translator = GoogleTranslator(from_lang, to_lang)
     translation = translator.translate_batch(texts)
-
     translation = [t if need_translate_mask[i] else texts[i] for i, t in enumerate(translation)]
     return translation

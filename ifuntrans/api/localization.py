@@ -4,6 +4,7 @@ import langcodes
 import pandas as pd
 import requests
 
+from ifuntrans.pe import hardcode_post_edit
 from ifuntrans.translate import translate
 from ifuntrans.translators.detection import single_detection
 from ifuntrans.utils import IFUN_CALLBACK_URL, S3_DEFAULT_BUCKET, get_s3_client, get_s3_key_from_id
@@ -35,22 +36,26 @@ def read_excel(file_path: str) -> pd.DataFrame:
 
 def translate_excel(file_path: str, saved_path: str, to_langs: str):
     df, from_lang = read_excel(file_path)
+    ids = df.iloc[:, 0].tolist()
+    source = df.iloc[:, 1].tolist()
+    to_langs = to_langs.split(",")
 
-    lang2df = {}
-    for lang in to_langs.split(","):
+    lang2translations = {}
+    for lang in to_langs:
         language_name = langcodes.get(lang).language_name()
         territory_name = langcodes.get(lang).territory_name()
         if territory_name:
             language_name += f" ({territory_name})"
-        lang2df[language_name] = translate(df.iloc[:, 1].tolist(), from_lang, lang)
+        translations = translate(source, from_lang, lang)
+        lang2translations[language_name] = hardcode_post_edit(source, translations, from_lang, lang)
 
     # save to excel
     writer = pd.ExcelWriter(saved_path, engine="xlsxwriter")
     df_final = df.copy()
-    for language_name, translations in lang2df.items():
+    for language_name, translations in lang2translations.items():
         df_final[language_name] = translations
     df_final.to_excel(writer, sheet_name="Translation Summary", index=False)
-    for language_name, translations in lang2df.items():
+    for language_name, translations in lang2translations.items():
         temp_df = df.copy()
         temp_df["Machine Translation"] = translations
         temp_df.to_excel(writer, sheet_name=language_name, index=False)
