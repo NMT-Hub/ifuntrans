@@ -42,6 +42,12 @@ async def redirect_trailing_slash(request: fastapi.Request, call_next):
     return response
 
 
+async def custom_exception_handler(request: fastapi.Request, exc: Exception):
+    return fastapi.responses.JSONResponse(
+        content={"message": "服务器内部错误", "code": 500, "data": ""},
+    )
+
+
 def home():
     """redirect user to the swagger api"""
     return RedirectResponse("/docs")
@@ -60,6 +66,7 @@ def create_app():
 
     import ifuntrans.api.translate as translate
 
+    app.exception_handler(Exception)(custom_exception_handler)
     app.middleware("http")(redirect_trailing_slash)
     app.get("/", summary="SwaggerUI (当前页面)")(home)
     app.post(
