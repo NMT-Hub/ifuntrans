@@ -1,13 +1,18 @@
 import os
 import re
-from typing import List
+from typing import Iterable, List, Tuple
 
 import guidance
 import langcodes
+import tiktoken
 
 AZURE_OPENAI_ENDPOINT = os.environ["AZURE_OPENAI_ENDPOINT"]
 AZURE_OPENAI_API_KEY = os.environ["AZURE_OPENAI_API_KEY"]
 DEPLOYMENT_ID = os.environ["DEPLOYMENT_ID"]
+
+MAX_LENGTH = 500
+
+tokenizer = tiktoken.get_encoding("cl100k_base")
 
 
 # set the default language model used to execute guidance programs
@@ -19,6 +24,116 @@ guidance.llm = guidance.llms.OpenAI(
     api_version="2023-05-15",
     deployment_id=DEPLOYMENT_ID,
 )
+
+
+def varify_placeholders(src: str, tgt: str):
+    re_num_placeholder = r"\{(\d+)\}"
+    re_color_placeholder = r"\[color=#([0-9A-F]{6})\].*?\[/color\]"
+    re_bold_placeholder = r"\[b\].*?\[/b\]"
+
+    for regx in [re_num_placeholder, re_color_placeholder, re_bold_placeholder]:
+        src_match = re.findall(regx, src)
+        tgt_match = re.findall(regx, tgt)
+        if len(src_match) != len(tgt_match):
+            return False
+
+    return True
+
+
+def chunk_by_max_length(source: List[str], target: List[str]) -> Iterable[Tuple[List[str], List[str]]]:
+    source_chunk = []
+    target_chunk = []
+    cur_len = 0
+    for src, tgt in zip(source, target):
+        len_src = len(tokenizer.encode(src))
+        len_tgt = len(tokenizer.encode(tgt))
+        if len_src + len_tgt + cur_len > MAX_LENGTH:
+            yield source_chunk, target_chunk
+            source_chunk = []
+            target_chunk = []
+            cur_len = 0
+        source_chunk.append(src)
+        target_chunk.append(tgt)
+        cur_len += len_src + len_tgt
+
+    if source_chunk:
+        yield source_chunk, target_chunk
+
+
+FIX_PLACEHOLDER_GUIDANCE = """
+{{#system~}}
+{{instructions}}
+现在我要对这个游戏中的文本进行翻译，翻译方向为由{{src_lang}}到{{tgt_lang}}现在我通过google翻译得到了机翻译文，但是该译文不太完美。
+
+在游戏资源文件或其他类型的格式化文本中，这些特殊的标记（如 [b], [color], [/color], [/b] 以及 {0}, {1}）通常被称为“标签”或“格式标记”。
+
+[b] 和 [/b] 通常代表文本的开始和结束加粗。
+[color=#df9300] 和 [/color] 是用于指定文本颜色的标签，其中 #df9300 是一个特定的颜色编码。
+{0} 和 {1} 是占位符，它们通常在字符串格式化中使用，代表在运行时会被相应的值替换。
+{{~/system}}
+
+{{#user~}}
+{{query}}
+
+译文中的特殊符号，并没有保留原格式，请帮我修复它，并直接输出修改后的{{tgt_lang}}译文，不要做出过多的解释。
+{{~/user}}
+
+{{#assistant~}}
+{{gen 'answer' temperature=0}}
+{{~/assistant}}
+"""
+
+
+def chatgpt_fix_placeholder(
+    origin: List[str], target: List[str], src_lang: str, tgt_lang: str, instructions=""
+) -> List[str]:
+    src_lang = langcodes.get(src_lang).display_name()
+    tgt_lang = langcodes.get(tgt_lang).display_name()
+
+    # filter out the sentence pair that has different number of placeholders
+    mask = [varify_placeholders(s, t) for s, t in zip(origin, target)]
+    filtered = [(s, t) for m, s, t in zip(mask, origin, target) if not m]
+    if not filtered:
+        return target
+    origin, target = zip(*filtered)
+
+    fixed = []
+
+    print(tgt_lang)
+    print(len(origin))
+    for src, tgt in chunk_by_max_length(origin, target):
+        query = ""
+        for i, (s, t) in enumerate(zip(src, tgt)):
+            # replace all blank with space
+            s = re.sub(r"\s+", " ", s)
+            t = re.sub(r"\s+", " ", t)
+            query += "\t".join([s, t]) + "\n"
+
+        guide = guidance(FIX_PLACEHOLDER_GUIDANCE)
+        result = guide(
+            instructions=instructions,
+            src_lang=src_lang,
+            tgt_lang=tgt_lang,
+            query=query,
+        )
+        answer = result.get("answer", "").split("\n")
+        if len(answer) != len(origin):
+            fixed.extend(tgt)
+        else:
+            fixed.extend(answer)
+
+    all_result = []
+    i = 0
+    for m, t in zip(mask, target):
+        if m:
+            all_result.append(fixed[i])
+            i += 1
+        else:
+            all_result.append(t)
+
+    import ipdb
+    ipdb.set_trace()
+    return all_result
 
 
 GUIDANCE = """
