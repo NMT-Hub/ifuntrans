@@ -62,18 +62,13 @@ def chunk_by_max_length(source: List[str], target: List[str]) -> Iterable[Tuple[
         yield source_chunk, target_chunk
 
 
-FIX_PLACEHOLDER_GUIDANCE = """
+CHATGPT_DOC_TRANSLATE_GUIDANCE = """
 {{#system~}}
-{{instructions}}
-现在我要对这个游戏中的文本进行翻译，翻译方向为由{{src_lang}}到{{tgt_lang}}现在我通过google翻译得到了机翻译文，但是该译文不太完美。
+You will be provided with a sentence in {{src_lang}}, and your task is to translate it into {{tgt_lang}}.
 
-在游戏资源文件或其他类型的格式化文本中，这些特殊的标记（如 [b], [color], [/color], [/b] 以及 {0}, {1}）通常被称为“标签”或“格式标记”。
-
-[b] 和 [/b] 通常代表文本的开始和结束加粗。
-[color=#df9300] 和 [/color] 是用于指定文本颜色的标签，其中 #df9300 是一个特定的颜色编码。
-{0} 和 {1} 是占位符，它们通常在字符串格式化中使用，代表在运行时会被相应的值替换。
-
-译文中的特殊符号，并没有保留原格式，请帮我修复它，并直接输出修改后的{{tgt_lang}}译文，不要做出过多的解释。
+1. Please output the translations in the same order as the input sentences (one translation per line).
+2. Please do not add or remove any punctuation marks.
+3. Please don't do any explaining.
 {{~/system}}
 
 {{#user~}}
@@ -86,11 +81,11 @@ FIX_PLACEHOLDER_GUIDANCE = """
 """
 
 
-def chatgpt_fix_placeholder(
-    origin: List[str], target: List[str], src_lang: str, tgt_lang: str, instructions=""
+def chatgpt_doc_translate(
+    ids: str, origin: List[str], target: List[str], src_lang: str, tgt_lang: str, instructions=""
 ) -> List[str]:
-    src_lang = langcodes.get(src_lang).display_name()
-    tgt_lang = langcodes.get(tgt_lang).display_name()
+    src_lang_name = langcodes.get(src_lang).display_name()
+    tgt_lang_name = langcodes.get(tgt_lang).display_name()
 
     # filter out the sentence pair that has different number of placeholders
     mask = [varify_placeholders(s, t) for s, t in zip(origin, target)]
@@ -110,11 +105,11 @@ def chatgpt_fix_placeholder(
             t = re.sub(r"\s+", " ", t)
             query += "\t".join([s, t]) + "\n"
 
-        guide = guidance(FIX_PLACEHOLDER_GUIDANCE)
+        guide = guidance(CHATGPT_DOC_TRANSLATE_GUIDANCE)
         result = guide(
             instructions=instructions,
-            src_lang=src_lang,
-            tgt_lang=tgt_lang,
+            src_lang=src_lang_name,
+            tgt_lang=tgt_lang_name,
             query=query,
         )
         answer = result.get("answer", "").split("\n")
@@ -135,55 +130,7 @@ def chatgpt_fix_placeholder(
     return all_result
 
 
-GUIDANCE = """
-{{#system~}}
-{{instructions}}
-现在我要对这个游戏中的文本进行翻译，翻译方向为由{{src_lang}}到{{tgt_lang}}现在我通过google翻译得到了机翻译文，但是该译文不太完美，请根据我的要对该译文进行修改，使其更加完美。
-1.中文句式一致的，其他语言麻烦尽量保持翻译句式一致。
-2.大小写问题，建筑，工具，按键，名字等等需要首字母大写（针对有字母的语言）
-3.句子首字母保持大写
-4.罗马数字写法统一，比如不要Ⅱ和II都用，直接用Ⅱ
-5.如果有特殊符号，需要保留原格式，不能改变字符或者添加空格。如`{0}`，`[color=#FFFFFF]`
-6.特殊翻译最好使用缩写，比如攻击力ATK，防御力DEF，生命HP，经验EXP
-{{~/system}}
-
-{{#user~}}
-{{query}}
-请输出修改后的译文结果
-{{~/user}}
-
-{{#assistant~}}
-{{gen 'answer' temperature=0}}
-{{~/assistant}}
-"""
-
-
-def chatgpt_post_edit(origin: List[str], target: List[str], src_lang: str, tgt_lang: str, instructions="") -> List[str]:
-    """
-    Post edit with chatgpt.
-    """
-    template = GUIDANCE
-
-    query = ""
-    for i, (src, tgt) in enumerate(zip(origin, target)):
-        query += "\t".join([src, tgt]) + "\n"
-
-    guide = guidance(template)
-    result = guide(
-        instructions=instructions,
-        src_lang=langcodes.get(src_lang).display_name(),
-        tgt_lang=langcodes.get(tgt_lang).display_name(),
-        query=query,
-    )
-
-    answer = result.get("answer", "").split("\n")
-    if len(answer) != len(origin):
-        return target
-    else:
-        return answer
-
-
-def normalize_placeholder(matched_obj: re.Match) -> str:
+def _normalize_placeholder(matched_obj: re.Match) -> str:
     """
     Normalize placeholder. Remove all blank.
     """
@@ -198,10 +145,10 @@ def hardcode_post_edit(origin: List[str], target: List[str], src_lang: str, tgt_
     for src, tgt in zip(origin, target):
         # Normalize placeholders
         if not varify_placeholders(src, tgt):
-            tgt = re.sub(r"\[/[\x20-\x7E]+?\]", normalize_placeholder, tgt)
-            tgt = re.sub(r"\[color[\x20-\x7E]+?\]", normalize_placeholder, tgt)
+            tgt = re.sub(r"\[/[\x20-\x7E]+?\]", _normalize_placeholder, tgt)
+            tgt = re.sub(r"\[color[\x20-\x7E]+?\]", _normalize_placeholder, tgt)
             while re.search(r"[\[\]\{\}/]\s+[\[\]\{\}/]", tgt):
-                tgt = re.sub(r"[\[\]\{\}/]\s+[\[\]\{\}/]", normalize_placeholder, tgt)
+                tgt = re.sub(r"[\[\]\{\}/]\s+[\[\]\{\}/]", _normalize_placeholder, tgt)
 
         re_num_placeholder = r"\{(\d+)\}"
         re_color_placeholder = (
