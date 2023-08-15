@@ -25,8 +25,8 @@ def pe(input_file, output_file):
 
         df[sheet_name]["Hardcode PE"] = results
 
-        results = chatgpt_fix_placeholder(sheet_df[columns[1]].tolist(), results, src_lang, tgt_lang)
-        df[sheet_name]["ChatGPT Fix Placeholder"] = results
+        # results = chatgpt_fix_placeholder(sheet_df[columns[1]].tolist(), results, src_lang, tgt_lang)
+        # df[sheet_name]["ChatGPT Fix Placeholder"] = results
 
         main_sheet[sheet_name] = results
 

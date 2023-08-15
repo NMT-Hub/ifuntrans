@@ -38,3 +38,8 @@ def get_translator(name: str, source: str, target: str) -> "BaseTranslator":
     if translator is None:
         raise ValueError(f"Translator {name} not found")
     return translator(source=source, target=target)
+
+
+def translate(src, src_lang, tgt_lang):
+    translator = get_translator("google", src_lang, tgt_lang)
+    return translator.translate(src)

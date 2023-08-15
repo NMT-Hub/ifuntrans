@@ -6,6 +6,8 @@ import guidance
 import langcodes
 import tiktoken
 
+from ifuntrans.translators import translate
+
 AZURE_OPENAI_ENDPOINT = os.environ["AZURE_OPENAI_ENDPOINT"]
 AZURE_OPENAI_API_KEY = os.environ["AZURE_OPENAI_API_KEY"]
 DEPLOYMENT_ID = os.environ["DEPLOYMENT_ID"]
@@ -70,12 +72,12 @@ FIX_PLACEHOLDER_GUIDANCE = """
 [b] 和 [/b] 通常代表文本的开始和结束加粗。
 [color=#df9300] 和 [/color] 是用于指定文本颜色的标签，其中 #df9300 是一个特定的颜色编码。
 {0} 和 {1} 是占位符，它们通常在字符串格式化中使用，代表在运行时会被相应的值替换。
+
+译文中的特殊符号，并没有保留原格式，请帮我修复它，并直接输出修改后的{{tgt_lang}}译文，不要做出过多的解释。
 {{~/system}}
 
 {{#user~}}
 {{query}}
-
-译文中的特殊符号，并没有保留原格式，请帮我修复它，并直接输出修改后的{{tgt_lang}}译文，不要做出过多的解释。
 {{~/user}}
 
 {{#assistant~}}
@@ -95,12 +97,11 @@ def chatgpt_fix_placeholder(
     filtered = [(s, t) for m, s, t in zip(mask, origin, target) if not m]
     if not filtered:
         return target
+    target_backup = target
     origin, target = zip(*filtered)
 
     fixed = []
 
-    print(tgt_lang)
-    print(len(origin))
     for src, tgt in chunk_by_max_length(origin, target):
         query = ""
         for i, (s, t) in enumerate(zip(src, tgt)):
@@ -124,15 +125,13 @@ def chatgpt_fix_placeholder(
 
     all_result = []
     i = 0
-    for m, t in zip(mask, target):
-        if m:
+    for m, t in zip(mask, target_backup):
+        if not m:
             all_result.append(fixed[i])
             i += 1
         else:
             all_result.append(t)
 
-    import ipdb
-    ipdb.set_trace()
     return all_result
 
 
@@ -184,12 +183,59 @@ def chatgpt_post_edit(origin: List[str], target: List[str], src_lang: str, tgt_l
         return answer
 
 
+def normalize_placeholder(matched_obj: re.Match) -> str:
+    """
+    Normalize placeholder. Remove all blank.
+    """
+    return re.sub(r"\s+", "", matched_obj.group(0))
+
+
 def hardcode_post_edit(origin: List[str], target: List[str], src_lang: str, tgt_lang: str) -> List[str]:
     """
     Hardcode post edit.
     """
     answer = []
     for src, tgt in zip(origin, target):
+        # Normalize placeholders
+        if not varify_placeholders(src, tgt):
+            tgt = re.sub(r"\[/[\x20-\x7E]+?\]", normalize_placeholder, tgt)
+            tgt = re.sub(r"\[color[\x20-\x7E]+?\]", normalize_placeholder, tgt)
+            while re.search(r"[\[\]\{\}/]\s+[\[\]\{\}/]", tgt):
+                tgt = re.sub(r"[\[\]\{\}/]\s+[\[\]\{\}/]", normalize_placeholder, tgt)
+
+        re_num_placeholder = r"\{(\d+)\}"
+        re_color_placeholder = (
+            r"(?P<colorprefix>\[color=#([0-9A-F]{6})\])(?P<colorcontent>.*?)(?P<colorsuffix>\[/color\])"
+        )
+        re_bold_placeholder = r"(?P<boldprefix>\[b\])(?P<boldcontent>.*?)(?P<boldsuffix>\[/b\])"
+        spliter = re_color_placeholder + "|" + re_bold_placeholder
+
+        if not varify_placeholders(src, tgt):
+            tgt = ""
+
+            for seg in re.finditer(spliter, src):
+                start, end = seg.span()
+                if src[:start]:
+                    tgt += translate(src[:start], src_lang, tgt_lang)
+
+                groups = seg.groupdict()
+
+                if groups["colorprefix"]:
+                    tgt += (
+                        groups["colorprefix"]
+                        + translate(groups["colorcontent"], src_lang, tgt_lang)
+                        + groups["colorsuffix"]
+                    )
+                elif groups["boldprefix"]:
+                    tgt += (
+                        groups["boldprefix"]
+                        + translate(groups["boldcontent"], src_lang, tgt_lang)
+                        + groups["boldsuffix"]
+                    )
+
+            if src[end:]:
+                tgt += translate(src[end:], src_lang, tgt_lang)
+
         # Upper case First letter
         tgt = tgt[0].upper() + tgt[1:]
 
