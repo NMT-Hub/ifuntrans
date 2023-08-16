@@ -82,7 +82,7 @@ You will be provided with a sentence in {{src_lang}}, and your task is to transl
 
 
 def chatgpt_doc_translate(
-    ids: str, origin: List[str], target: List[str], src_lang: str, tgt_lang: str, instructions=""
+    origin: List[str], target: List[str], src_lang: str, tgt_lang: str, instructions=""
 ) -> List[str]:
     src_lang_name = langcodes.get(src_lang).display_name()
     tgt_lang_name = langcodes.get(tgt_lang).display_name()

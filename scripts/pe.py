@@ -1,11 +1,18 @@
 # Merge worksheet from multiple Excel files into one Excel file
 
 import argparse
+import re
 
 import langcodes
 import pandas
 
-from ifuntrans.pe import chatgpt_fix_placeholder, hardcode_post_edit
+from ifuntrans.pe import chatgpt_doc_translate, hardcode_post_edit
+
+
+def _id_group_func(row):
+    # replace all number by blank
+    row["ID"] = re.sub(r"\d+", "", row["ID"])
+    return row
 
 
 def pe(input_file, output_file):
@@ -22,10 +29,16 @@ def pe(input_file, output_file):
         tgt_lang = langcodes.find(sheet_name).language
 
         results = hardcode_post_edit(sheet_df[columns[1]].tolist(), sheet_df[columns[2]].tolist(), src_lang, tgt_lang)
-
         df[sheet_name]["Hardcode PE"] = results
 
-        # results = chatgpt_fix_placeholder(sheet_df[columns[1]].tolist(), results, src_lang, tgt_lang)
+        # group by id
+        group = sheet_df.apply(_id_group_func, axis=1).groupby("ID")
+        for name, group_df in group:
+            import ipdb
+
+            ipdb.set_trace()
+
+        results = chatgpt_doc_translate(sheet_df[columns[1]].tolist(), results, src_lang, tgt_lang)
         # df[sheet_name]["ChatGPT Fix Placeholder"] = results
 
         main_sheet[sheet_name] = results
