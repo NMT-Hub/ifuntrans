@@ -2,16 +2,33 @@
 
 import argparse
 import re
+from itertools import chain
 
 import langcodes
 import pandas
 
-from ifuntrans.pe import chatgpt_doc_translate, hardcode_post_edit
+from ifuntrans.pe import chatgpt_doc_translate, hardcode_post_edit, tokenizer
 
 
 def _id_group_func(row):
     # replace all number by blank
     row["ID"] = re.sub(r"\d+", "", row["ID"])
+    return row
+
+
+def _prefix_group_func(row):
+    string = row.iloc[1]
+    string = re.sub(r"\d+", "", string)
+    string = re.sub(r"\s+", "", string)
+    row.iloc[0] = tokenizer.decode(tokenizer.encode(string)[:3])
+    return row
+
+
+def _suffix_group_func(row):
+    string = row.iloc[1]
+    string = re.sub(r"\d+", "", string)
+    string = re.sub(r"\s+", "", string)
+    row.iloc[0] = tokenizer.decode(tokenizer.encode(string)[-3:])
     return row
 
 
@@ -21,6 +38,8 @@ def pe(input_file, output_file):
     main_sheet = df["Translation Summary"]
 
     for sheet_name, sheet_df in df.items():
+        # if sheet_name != "Thai":
+        #     continue
         if sheet_name == "Translation Summary":
             continue
         columns = sheet_df.columns
@@ -28,20 +47,27 @@ def pe(input_file, output_file):
         src_lang = langcodes.find(src_lang_name).language
         tgt_lang = langcodes.find(sheet_name).language
 
-        results = hardcode_post_edit(sheet_df[columns[1]].tolist(), sheet_df[columns[2]].tolist(), src_lang, tgt_lang)
-        df[sheet_name]["Hardcode PE"] = results
+        results = hardcode_post_edit(sheet_df[columns[1]].tolist(), sheet_df[columns[-1]].tolist(), src_lang, tgt_lang)
+        sheet_df["Hardcode PE"] = results
 
         # group by id
-        group = sheet_df.apply(_id_group_func, axis=1).groupby("ID")
-        for name, group_df in group:
-            import ipdb
+        sheet_df["ChatGPT Fix Consistency"] = None
+        group_prefix = sheet_df.apply(_prefix_group_func, axis=1).groupby(columns[0])
+        group_suffix = sheet_df.apply(_suffix_group_func, axis=1).groupby(columns[0])
+        for _, group_df in chain(group_prefix, group_suffix):
+            if group_df.shape[0] < 10:
+                continue
+            
+            prev_result = group_df[columns[-1]].tolist()
+            group_results = chatgpt_doc_translate(
+                group_df[columns[1]].tolist(), prev_result, src_lang, tgt_lang
+            )
 
-            ipdb.set_trace()
+            group_df["ChatGPT Fix Consistency"] = group_results
+            sheet_df.update(group_df, overwrite=False)
 
-        results = chatgpt_doc_translate(sheet_df[columns[1]].tolist(), results, src_lang, tgt_lang)
-        # df[sheet_name]["ChatGPT Fix Placeholder"] = results
-
-        main_sheet[sheet_name] = results
+        main_sheet[sheet_name].update(sheet_df["ChatGPT Fix Consistency"])
+        # break
 
     # Write output file
     with pandas.ExcelWriter(output_file, engine="openpyxl") as writer:

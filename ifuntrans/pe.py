@@ -1,5 +1,6 @@
 import os
 import re
+import warnings
 from typing import Iterable, List, Tuple
 
 import guidance
@@ -11,14 +12,17 @@ from ifuntrans.translators import translate
 AZURE_OPENAI_ENDPOINT = os.environ["AZURE_OPENAI_ENDPOINT"]
 AZURE_OPENAI_API_KEY = os.environ["AZURE_OPENAI_API_KEY"]
 DEPLOYMENT_ID = os.environ["DEPLOYMENT_ID"]
+OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 
 MAX_LENGTH = 500
 
-tokenizer = tiktoken.get_encoding("cl100k_base")
+tokenizer = tiktoken.encoding_for_model("gpt-4")
 
 
 # set the default language model used to execute guidance programs
 guidance.llm = guidance.llms.OpenAI(
+    # "gpt-3.5-turbo",
+    # api_key=OPENAI_API_KEY,
     "gpt-4",
     api_key=AZURE_OPENAI_API_KEY,
     api_type="azure",
@@ -69,6 +73,8 @@ You will be provided with a sentence in {{src_lang}}, and your task is to transl
 1. Please output the translations in the same order as the input sentences (one translation per line).
 2. Please do not add or remove any punctuation marks.
 3. Please don't do any explaining.
+
+{{example}}
 {{~/system}}
 
 {{#user~}}
@@ -87,23 +93,14 @@ def chatgpt_doc_translate(
     src_lang_name = langcodes.get(src_lang).display_name()
     tgt_lang_name = langcodes.get(tgt_lang).display_name()
 
-    # filter out the sentence pair that has different number of placeholders
-    mask = [varify_placeholders(s, t) for s, t in zip(origin, target)]
-    filtered = [(s, t) for m, s, t in zip(mask, origin, target) if not m]
-    if not filtered:
-        return target
-    target_backup = target
-    origin, target = zip(*filtered)
-
     fixed = []
-
+    example = ""
     for src, tgt in chunk_by_max_length(origin, target):
         query = ""
-        for i, (s, t) in enumerate(zip(src, tgt)):
+        for s, t in zip(src, tgt):
             # replace all blank with space
             s = re.sub(r"\s+", " ", s)
-            t = re.sub(r"\s+", " ", t)
-            query += "\t".join([s, t]) + "\n"
+            query += s + "\n"
 
         guide = guidance(CHATGPT_DOC_TRANSLATE_GUIDANCE)
         result = guide(
@@ -111,23 +108,22 @@ def chatgpt_doc_translate(
             src_lang=src_lang_name,
             tgt_lang=tgt_lang_name,
             query=query,
+            example=example,
         )
-        answer = result.get("answer", "").split("\n")
-        if len(answer) != len(origin):
-            fixed.extend(tgt)
+        answer = result.get("answer", "").strip().split("\n")
+        if len(answer) != len(tgt):
+            warnings.warn(
+                f"ChatGPT Doc Translate failed. Please check the following sentences:\n"
+                f"Source: {src}\n"
+                f"Target: {tgt}\n"
+                f"Answer: {answer}\n"
+            )
+            answer = tgt
         else:
-            fixed.extend(answer)
-
-    all_result = []
-    i = 0
-    for m, t in zip(mask, target_backup):
-        if not m:
-            all_result.append(fixed[i])
-            i += 1
-        else:
-            all_result.append(t)
-
-    return all_result
+            print("pass")
+        fixed.extend(answer)
+        example = "\n".join(src[-3:]) + "\n\n" + "\n".join(tgt[-3:])
+    return fixed
 
 
 def _normalize_placeholder(matched_obj: re.Match) -> str:
