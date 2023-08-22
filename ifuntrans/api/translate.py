@@ -51,8 +51,10 @@ class TranslationRequest(IfunTransModel):
             return "auto"
         return sourceLan
 
-    @pydantic.validator("engine")
-    def check_engine(cls, engine: str):
+    @pydantic.validator("engine", pre=True, always=True)
+    def check_engine(cls, engine: str, values: dict):
+        if values["type"] == "html":
+            return "google"
         if not engine:
             return "google"
         if engine not in SUPPORTED_ENGINES:
