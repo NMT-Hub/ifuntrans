@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
+from ifuntrans.api.constants import LANG_EN_TO_CODE
 from ifuntrans.metadata import __version__, contact, license_info, title
 
 
@@ -53,6 +54,15 @@ def home():
     return RedirectResponse("/docs")
 
 
+def get_lang_codes_en():
+    """get all supported language codes"""
+    return LANG_EN_TO_CODE
+
+def get_lang_codes_zh():
+    """get all supported language codes"""
+    return LANG_EN_TO_CODE
+
+
 def create_app():
     """create the FastAPI app"""
     # app object
@@ -69,6 +79,8 @@ def create_app():
     app.exception_handler(Exception)(custom_exception_handler)
     app.middleware("http")(redirect_trailing_slash)
     app.get("/", summary="SwaggerUI (当前页面)")(home)
+    app.get("/lang_codes_en", summary="获取所有支持的语言代码（英语版本）")(get_lang_codes_en)
+    app.get("/lang_codes_zh", summary="获取所有支持的语言代码（中文版本）")(get_lang_codes_zh)
     app.post(
         "/translate",
         summary="翻译接口, 传递引擎名称，翻译源语言，翻译目标语言，翻译内容，返回翻译结果",

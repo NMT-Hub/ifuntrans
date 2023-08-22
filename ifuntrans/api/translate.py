@@ -5,11 +5,8 @@ import pydantic
 
 from ifuntrans.api import IfunTransModel
 from ifuntrans.api.localization import translate_s3_excel_task
-from ifuntrans.translators import get_translator
 from ifuntrans.utils import get_s3_key_from_id
-
-__all__ = ["translate", "get_avaliable_engines", "get_avaliable_languages"]
-
+import ifuntrans.async_translators as translators
 
 SUPPORTED_ENGINES = {
     "google": "Google翻译",
@@ -68,15 +65,16 @@ class TranslationResponse(IfunTransModel):
     data: str
     sourceLan: str
     targetLan: str
+    engine: str = "google"
 
     model_config = {
         "json_schema_extra": {
-            "examples": [{"code": 200, "message": "请求成功", "data": "Hello World", "sourceLan": "fr", "targetLan": "en"}]
+            "examples": [{"code": 200, "message": "请求成功", "data": "Hello World", "sourceLan": "fr", "targetLan": "en", "engine": "google"}]
         }
     }
 
 
-def translate(
+async def translate(
     request: Annotated[
         TranslationRequest,
         fastapi.Body(
@@ -88,11 +86,13 @@ def translate(
     background_tasks: fastapi.BackgroundTasks,
 ) -> TranslationResponse:
     if request.type == "text":
-        translator = get_translator(request.engine, request.sourceLan, request.targetLan)
+        engine = getattr(translators, request.engine)
+        translation = await engine.translate_text(request.translateSource, request.sourceLan, request.targetLan)
         return TranslationResponse(
-            data=translator.translate(request.translateSource),
-            sourceLan=translator.source,
+            data=translation,
+            sourceLan=request.sourceLan,
             targetLan=request.targetLan,
+            engine=request.engine,
         )
     else:
         background_tasks.add_task(translate_s3_excel_task, request.id, request.translateSource, request.targetLan)

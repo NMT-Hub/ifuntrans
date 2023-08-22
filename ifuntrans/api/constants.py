@@ -1,103 +1,4 @@
-# 机器翻译引擎对接文档
-[[_toc_]]
-
-## 接口文档
-具体请求示例请参考：[接口文档](http://10.1.75.111:8888)
-
-### 文本翻译接口 + 文档翻译接口
-```http
-headers: {
-    "Content-Type": "application/json"
-}
-```
-- POST`/translate`: 翻译接口
-    - 请求参数说明
-        - `type`（可选参数，默认为text）: 翻译类型，文本text，文档doc, 带html标签文本html。
-        - `engine`（可选参数，默认为google）: 引擎名称
-        - `sourceLan`（必填参数）: 原语言编码，可以指定auto为自动识别
-        - `targetLan`（必填参数）: 目标语言编码，如果翻译多个语种，请用,隔开。注：多个语种状况目前仅适用于type 为 doc时。
-        - `translateSource`（必填参数）: 翻译内容 文件翻译则是放文件s3 key
-        - `id`（type为doc时为必填参数，其他非必填）: 文本翻译时会传该参数，用于标识任务
-    - 返回参数说明
-        - `code`: 状态码，具体参见[状态码](#状态码)
-        - `message`: 状态或者错误信息
-        - `data`:
-            - `sourceLan`: 原语言编码，一般与请求参数中一致。如果请求参数中为"auto"，这返回检测到的原文语种编码
-            - `targetLan`：目标语种编码，与请求参数中一致
-            - `data`: 译文，文件翻译则直接返回"上传成功，正在翻译"字样
-            - `engine`: 一般与请求参数中一致，如果指定引擎不支持指定的语向，则会自动选择一个支持的引擎
-
-#### 状态码
-| 错误码 | 描述                                              |
-| ------ | ------------------------------------------------- |
-| 200    | 请求成功                                          |
-| 400    | 请求参数有误，请检查参数                          |
-| 401    | 语言不支持                                        |
-| 402    | 文件格式不正确                                    |
-| 500    | 未知错误异常                                      |
-| 501    | 输入为空                                          |
-| 502    | 请求频繁，超出 QPS 限制                           |
-| 503    | 请求字符串长度超过限制                            |
-| 504    | 源语编码有问题，非 UTF-8                          |
-| 601    | 请求处理超时                                      |
-| 602    | s3请求错误                                        |
-
-### 支持语种请求接口
-- GET`/lang_codes_en`: 获取所有支持的语言代码（英语版本）
-- GET`/lang_codes_zh`: 获取所有支持的语言代码（中文版本）
-
-
-## 附录1-支持的引擎
-```json
-{
-    "google": "Google翻译", // 已经支持
-    "deepl": "DeepL",   // api运维申请中
-    "baidu": "百度翻译", // api运维申请中
-    "tencent": "腾讯翻译君", // api运维申请中
-    "microsoft": "微软Bing翻译", // 已经支持
-    "yandex": "Yandex", // api运维申请中
-    "chatgpt": "ChatGPT" // 已经支持
-}
-```
-
-## 附录2-常用语种对照（后续可以根据项目组需求进行补充）
-中文对照
-```json
-{
-    "简体中文": "zh-CN",
-    "英语": "en-US",
-    "繁体中文": "zh-TW",
-    "印尼语": "id-ID",
-    "越南语": "vi-VN",
-    "泰语": "th-TH",
-    "巴西葡萄牙语": "pt-BR",
-    "日语": "ja-JP",
-    "韩语": "ko-KR",
-    "阿拉伯语": "ar-SA",
-    "土耳其语": "tr-TR"
-}
-```
-英文对照
-```json
-{
-    "chinese simplified": "zh-CN",
-    "English": "en-US",
-    "Chinese Traditional": "zh-TW",
-    "Indonesian": "id-ID",
-    "Vietnamese": "vi-VN",
-    "Thai": "th-TH",
-    "Brazilian Portuguese": "pt-BR",
-    "Japanese": "ja-JP",
-    "Korean": "ko-KR",
-    "Arabic": "ar-SA",
-    "Turkish": "tr-TR"
-}
-```
-
-## 附录3-全部语种对照
-英文对照
-```json
-{
+LANG_EN_TO_CODE = {
     "afrikaans": "af",
     "albanian": "sq",
     "amharic": "am",
@@ -233,10 +134,8 @@ headers: {
     "zulu": "zu",
 }
 
-```
-语种中文对照
-```json
-{
+
+LANG_ZH_TO_CODE = {
     "阿非卡语": "af",
     "阿尔巴尼亚语": "sq",
     "阿姆哈拉语": "am",
@@ -369,6 +268,5 @@ headers: {
     "科萨语": "xh",
     "意第绪语": "yi",
     "约鲁巴语": "yo",
-    "祖鲁语": "zu"
+    "祖鲁语": "zu",
 }
-```
