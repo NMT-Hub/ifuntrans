@@ -1,13 +1,14 @@
+import re
 from typing import Annotated, Optional
 
 import fastapi
 import pydantic
 
+import ifuntrans.async_translators as translators
 from ifuntrans.api import IfunTransModel
 from ifuntrans.api.localization import translate_s3_excel_task
-from ifuntrans.utils import get_s3_key_from_id
-import ifuntrans.async_translators as translators
 from ifuntrans.lang_detection import single_detection
+from ifuntrans.utils import get_s3_key_from_id
 
 SUPPORTED_ENGINES = {
     "google": "Google翻译",
@@ -70,7 +71,16 @@ class TranslationResponse(IfunTransModel):
 
     model_config = {
         "json_schema_extra": {
-            "examples": [{"code": 200, "message": "请求成功", "data": "Hello World", "sourceLan": "fr", "targetLan": "en", "engine": "google"}]
+            "examples": [
+                {
+                    "code": 200,
+                    "message": "请求成功",
+                    "data": "Hello World",
+                    "sourceLan": "fr",
+                    "targetLan": "en",
+                    "engine": "google",
+                }
+            ]
         }
     }
 
@@ -86,16 +96,20 @@ async def translate(
     ],
     background_tasks: fastapi.BackgroundTasks,
 ) -> TranslationResponse:
-
-    if request.type == "text":
+    if request.type in ("text", "html"):
         sourceLan = request.sourceLan
         if sourceLan == "auto":
-            sourceLan = single_detection(request.translateSource)
+            if request.type == "text":
+                sourceLan = single_detection(request.translateSource)
+            else:
+                text = re.sub(r"<[^>]*>", "", request.translateSource)
+                sourceLan = single_detection(text)
+
         engine = getattr(translators, request.engine)
         translation = await engine.translate_text(request.translateSource, sourceLan, request.targetLan)
         return TranslationResponse(
             data=translation,
-            sourceLan=request.sourceLan,
+            sourceLan=sourceLan,
             targetLan=request.targetLan,
             engine=request.engine,
         )

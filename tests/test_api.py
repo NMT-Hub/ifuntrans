@@ -2,8 +2,10 @@ import datetime
 import os
 import tempfile
 
+import langcodes
 import pandas as pd
 import pytest
+from bs4 import BeautifulSoup
 from fastapi.testclient import TestClient
 
 import ifuntrans.api.translate as translate
@@ -32,6 +34,51 @@ def test_translate(client, engine):
     response = client.post("/translate", json=request).json()
     response_model = translate.TranslationResponse(**response)
     assert response_model.code == 200
+
+
+def get_all_tags(html):
+    soup = BeautifulSoup(html, "html.parser")
+    return [tag.name for tag in soup.find_all()]
+
+
+def assert_same_tags(html1, html2):
+    tags1 = set(get_all_tags(html1))
+    tags2 = set(get_all_tags(html2))
+
+    assert tags1 == tags2, f"Different tags found: {tags1.symmetric_difference(tags2)}"
+
+
+def test_translate_html(client):
+    html_text = """
+        <div>&nbsp;</div>
+<div>&nbsp;</div>
+<div>这是一封测试邮件</div>
+<div>&nbsp;</div>
+<div>&nbsp;</div>
+<div>这是一封测试邮件秒 🏧 🚮 🚰 ♿ <img src="https://mail-test-1308485183.cos.accelerate.myqcloud.com/system/system-test/2023-08-15/cGhwdGVzdDRAZGluZ2Nsb3VkdGVjaC5jb20=/files/1692089309860_wdcuqz.png" alt="">🚹 🚺 🚻 🚼 🚾 🛂 🛃 🛄 🛅 ⚠&nbsp;</div>
+<div>&nbsp;</div>
+<div>&nbsp;</div>
+<div>&nbsp;</div>
+<div id="signature">
+<p>&nbsp;</p>
+</div>
+        """
+    request = {
+        "type": "html",
+        "engine": "google",
+        "sourceLan": "auto",
+        "targetLan": "en",
+        "translateSource": html_text,
+    }
+
+    response = client.post("/translate", json=request).json()
+    response_model = translate.TranslationResponse(**response)
+    assert response_model.code == 200
+    assert langcodes.closest_supported_match(response_model.sourceLan, ["zh-CN"]) == "zh-CN"
+
+    translation = response_model.data
+    # assert all html tags are same as original
+    assert_same_tags(html_text, translation)
 
 
 @pytest.mark.asyncio
