@@ -1,7 +1,8 @@
 import datetime
 import os
+from contextlib import asynccontextmanager
 
-import boto3
+import aioboto3
 
 AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY")
 AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
@@ -14,10 +15,10 @@ def get_s3_key_from_id(task_id: str) -> str:
     return f"ai-translate/target/{date_str}/{task_id}.xlsx"
 
 
-def get_s3_client():
-    s3_client = boto3.client(
-        "s3",
-        aws_access_key_id=AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-    )
-    return s3_client
+@asynccontextmanager
+async def S3Client():
+    session = aioboto3.Session()
+    async with session.client(
+        "s3", aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY
+    ) as s3:
+        yield s3

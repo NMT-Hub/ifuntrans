@@ -7,6 +7,7 @@ from ifuntrans.api import IfunTransModel
 from ifuntrans.api.localization import translate_s3_excel_task
 from ifuntrans.utils import get_s3_key_from_id
 import ifuntrans.async_translators as translators
+from ifuntrans.lang_detection import single_detection
 
 SUPPORTED_ENGINES = {
     "google": "Google翻译",
@@ -22,12 +23,12 @@ SUPPORTED_ENGINES = {
 class TranslationRequest(IfunTransModel):
     """model for a base request that require a source & target language and a text to translate"""
 
-    engine: Optional[str] = "google"
     sourceLan: str = "auto"
     targetLan: str = "en"
     translateSource: str
     type: str = "text"
     id: int = 0
+    engine: Optional[str] = "google"
 
     model_config = {
         "json_schema_extra": {
@@ -42,15 +43,15 @@ class TranslationRequest(IfunTransModel):
         }
     }
 
-    @pydantic.validator("sourceLan")
+    @pydantic.field_validator("sourceLan")
     def check_age(cls, sourceLan: str):
         if not sourceLan:
             return "auto"
         return sourceLan
 
-    @pydantic.validator("engine", pre=True, always=True)
+    @pydantic.field_validator("engine")
     def check_engine(cls, engine: str, values: dict):
-        if values["type"] == "html":
+        if values.data["type"] == "html":
             return "google"
         if not engine:
             return "google"
@@ -85,9 +86,13 @@ async def translate(
     ],
     background_tasks: fastapi.BackgroundTasks,
 ) -> TranslationResponse:
+
     if request.type == "text":
+        sourceLan = request.sourceLan
+        if sourceLan == "auto":
+            sourceLan = single_detection(request.translateSource)
         engine = getattr(translators, request.engine)
-        translation = await engine.translate_text(request.translateSource, request.sourceLan, request.targetLan)
+        translation = await engine.translate_text(request.translateSource, sourceLan, request.targetLan)
         return TranslationResponse(
             data=translation,
             sourceLan=request.sourceLan,

@@ -1,16 +1,17 @@
 import tempfile
+from typing import Tuple
 
+import httpx
 import langcodes
 import pandas as pd
-import requests
 
+from ifuntrans.lang_detection import single_detection
 from ifuntrans.pe import hardcode_post_edit
 from ifuntrans.translate import translate
-from ifuntrans.translators.detection import single_detection
-from ifuntrans.utils import IFUN_CALLBACK_URL, S3_DEFAULT_BUCKET, get_s3_client, get_s3_key_from_id
+from ifuntrans.utils import IFUN_CALLBACK_URL, S3_DEFAULT_BUCKET, S3Client, get_s3_key_from_id
 
 
-def read_excel(file_path: str) -> pd.DataFrame:
+def read_excel(file_path: str) -> Tuple[pd.DataFrame, str]:
     """
     Read the given excel file.
     :param file_path: The path to the excel file.
@@ -34,7 +35,7 @@ def read_excel(file_path: str) -> pd.DataFrame:
     return dataframe, lang
 
 
-def translate_excel(file_path: str, saved_path: str, to_langs: str):
+async def translate_excel(file_path: str, saved_path: str, to_langs: str):
     df, from_lang = read_excel(file_path)
     ids = df.iloc[:, 0].tolist()
     source = df.iloc[:, 1].tolist()
@@ -46,7 +47,7 @@ def translate_excel(file_path: str, saved_path: str, to_langs: str):
         territory_name = langcodes.get(lang).territory_name()
         if territory_name:
             language_name += f" ({territory_name})"
-        translations = translate(source, from_lang, lang)
+        translations = await translate(source, from_lang, lang)
         lang2translations[language_name] = hardcode_post_edit(source, translations, from_lang, lang)
 
     # save to excel
@@ -62,36 +63,36 @@ def translate_excel(file_path: str, saved_path: str, to_langs: str):
     writer.close()
 
 
-def callback(task_id: int, status: int, message: str) -> None:
+async def callback(task_id: int, status: int, message: str) -> None:
     # status 1: success, 2: failed, 3: in progress
-    response = requests.post(
-        IFUN_CALLBACK_URL,
-        json={
-            "id": task_id,
-            "status": status,
-            "message": message,
-            "translateTarget": get_s3_key_from_id(task_id),
-        },
-    )
-    response.raise_for_status()
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            IFUN_CALLBACK_URL,
+            json={
+                "id": task_id,
+                "status": status,
+                "message": message,
+                "translateTarget": get_s3_key_from_id(task_id),
+            },
+        )
+        response.raise_for_status()
 
 
-def translate_s3_excel_task(task_id: str, file_name: str, to_langs: str):
-    s3_client = get_s3_client()
-    # download file
-    with tempfile.NamedTemporaryFile(suffix=".xlsx") as temp_file:
-        try:
-            s3_client.download_file(S3_DEFAULT_BUCKET, file_name, temp_file.name)
-            callback(task_id, 3, "In progress...")
+async def translate_s3_excel_task(task_id: str, file_name: str, to_langs: str):
+    async with S3Client() as s3_client:
+        with tempfile.NamedTemporaryFile(suffix=".xlsx") as temp_file:
+            try:
+                await s3_client.download_file(S3_DEFAULT_BUCKET, file_name, temp_file.name)
+                await callback(task_id, 3, "In progress...")
 
-            # translate
-            translate_excel(temp_file.name, temp_file.name, to_langs)
+                # translate
+                await translate_excel(temp_file.name, temp_file.name, to_langs)
 
-            # upload file
-            s3_file_key = get_s3_key_from_id(task_id)
-            s3_client.upload_file(temp_file.name, S3_DEFAULT_BUCKET, s3_file_key)
+                # upload file
+                s3_file_key = get_s3_key_from_id(task_id)
+                await s3_client.upload_file(temp_file.name, S3_DEFAULT_BUCKET, s3_file_key)
 
-            callback(task_id, 1, "Success")
-        except Exception as e:
-            callback(task_id, 2, str(e))
-            raise e
+                await callback(task_id, 1, "Success")
+            except Exception as e:
+                await callback(task_id, 2, str(e))
+                raise e

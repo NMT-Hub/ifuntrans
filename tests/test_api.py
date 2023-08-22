@@ -1,11 +1,9 @@
 import datetime
 import os
 import tempfile
-from unittest.mock import patch
 
 import pandas as pd
 import pytest
-import requests
 from fastapi.testclient import TestClient
 
 import ifuntrans.api.translate as translate
@@ -21,10 +19,11 @@ def client():
     yield TestClient(app)
 
 
-def test_translate(client):
+@pytest.mark.parametrize("engine", ["google", "chatgpt"])
+def test_translate(client, engine):
     request = {
         "type": "text",
-        "engine": "google",
+        "engine": engine,
         "sourceLan": "auto",
         "targetLan": "en",
         "translateSource": "Bonjour le monde",
@@ -35,57 +34,43 @@ def test_translate(client):
     assert response_model.code == 200
 
 
-@patch.object(requests, "post")
-def test_microsoft_successful_post_mock(mock_request_post):
-    returned_json = {
-        "code": 200,
-        "message": "success",
-    }
-
-    def res():
-        r = requests.Response()
-
-        def json_func():
-            return returned_json
-
-        r.json = json_func
-        return r
-
-    mock_request_post.return_value = res()
-
-
-def test_localization(client):
+@pytest.mark.asyncio
+async def test_localization(client, mocker):
     task_id = 12345
-    s3 = utils.get_s3_client()
 
     date_str = datetime.datetime.now().strftime("%Y%m%d")
     s3_source_file = f"ai-translate/source/{date_str}/_test.xlsx"
-    # upload sample file
-    s3.upload_file(test_file, utils.S3_DEFAULT_BUCKET, s3_source_file)
 
-    langs = "en,zh-TW"
-    request = {
-        "id": task_id,
-        "type": "doc",
-        "targetLan": langs,
-        "translateSource": s3_source_file,
-    }
-    response = client.post("/translate", json=request).json()
-    response_model = translate.TranslationResponse(**response)
-    assert response_model.code == 200
+    async with utils.S3Client() as s3_client:
+        # upload sample file
+        await s3_client.upload_file(test_file, utils.S3_DEFAULT_BUCKET, s3_source_file)
 
-    s3_target_file = f"ai-translate/target/{date_str}/{task_id}.xlsx"
-    with tempfile.NamedTemporaryFile(suffix=".xlsx") as temp:
-        s3.download_file(
-            utils.S3_DEFAULT_BUCKET,
-            s3_target_file,
-            temp.name,
-        )
+        langs = "en,zh-TW"
+        request = {
+            "id": task_id,
+            "type": "doc",
+            "targetLan": langs,
+            "translateSource": s3_source_file,
+        }
 
-        df = pd.read_excel(temp.name, sheet_name=None)
-        # assert num sheet equals to target language + 1
-        assert len(df) == len(langs.split(",")) + 1
+        # from ifuntrans.api.localization import callback
+        # mocker.patch.object(callback, "__call__", new_callable=mocker.AsyncMock, return_value=None)
+        response = client.post("/translate", json=request).json()
+        response_model = translate.TranslationResponse(**response)
+        assert response_model.code == 200
 
-    # delete file from s3
-    s3.delete_object(Bucket=utils.S3_DEFAULT_BUCKET, Key=s3_source_file)
-    s3.delete_object(Bucket=utils.S3_DEFAULT_BUCKET, Key=s3_target_file)
+        s3_target_file = f"ai-translate/target/{date_str}/{task_id}.xlsx"
+        with tempfile.NamedTemporaryFile(suffix=".xlsx") as temp:
+            await s3_client.download_file(
+                utils.S3_DEFAULT_BUCKET,
+                s3_target_file,
+                temp.name,
+            )
+
+            df = pd.read_excel(temp.name, sheet_name=None)
+            # assert num sheet equals to target language + 1
+            assert len(df) == len(langs.split(",")) + 1
+
+        # delete file from s3
+        await s3_client.delete_object(Bucket=utils.S3_DEFAULT_BUCKET, Key=s3_source_file)
+        await s3_client.delete_object(Bucket=utils.S3_DEFAULT_BUCKET, Key=s3_target_file)
