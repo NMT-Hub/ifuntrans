@@ -72,7 +72,7 @@ You will be provided with a sentence in {src_lang}, and your task is to translat
 
 async def create_chat_completion(order: int, messages: List[Dict[str, str]]):
     chat_completion_resp = await openai.ChatCompletion.acreate(
-        model="gpt-3.5-turbo", messages=messages, timeout=60, deployment_id=DEPLOYMENT_ID
+        model="gpt-3.5-turbo", messages=messages, timeout=60, deployment_id=DEPLOYMENT_ID, temperature=0.0
     )
     return order, chat_completion_resp
 
@@ -108,15 +108,24 @@ async def _chatgpt_translate(
         answer = response.strip().split("\n")
 
         src, tgt = chunked[order]
-        if len(answer) != len(tgt):
+        
+        # In case that there are multiple new lines in the source sentence
+        translations = []
+        cur = 0
+        for s in src:
+            num_new_lines = s.count("\n")
+            translations.append("\n".join(answer[cur : cur + num_new_lines + 1]))
+            cur += num_new_lines + 1
+
+        if len(translations) != len(tgt):
             warnings.warn(
                 f"ChatGPT Doc Translate failed. Please check the following sentences:\n"
                 f"Source: {src}\n"
                 f"Target: {tgt}\n"
-                f"Answer: {answer}\n"
+                f"Answer: {translations}\n"
             )
-            answer = tgt
-        fixed.append((order, answer))
+            translations = tgt
+        fixed.append((order, translations))
 
     fixed.sort(key=lambda x: x[0])
     fixed = list(chain.from_iterable([x[1] for x in fixed]))
@@ -124,7 +133,7 @@ async def _chatgpt_translate(
 
 
 async def batch_translate_texts(texts: List[str], source_language_code: str, target_language_codes: str) -> List[str]:
-    mock_target = [""] * len(texts)
+    mock_target = ["Openai 翻译失败"] * len(texts)
     return await _chatgpt_translate(texts, mock_target, source_language_code, target_language_codes)
 
 

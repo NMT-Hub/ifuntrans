@@ -6,7 +6,7 @@ from typing import List
 import langcodes
 from opencc import OpenCC
 
-from ifuntrans.async_translators.google import batch_translate_texts
+from ifuntrans.async_translators.chatgpt import batch_translate_texts
 from ifuntrans.characters import get_need_translate_func
 
 opencc_mapping = {
@@ -69,6 +69,16 @@ async def translate(texts: List[str], from_lang: str, to_lang: str) -> List[str]
 
     need_translate_func = get_need_translate_func(from_lang)
     need_translate_mask = [need_translate_func(text) for text in texts]
-    translation = await batch_translate_texts(texts, from_lang, to_lang)
-    translation = [t if need_translate_mask[i] else texts[i] for i, t in enumerate(translation)]
-    return translation
+    need_translate_texts = [t for t, m in zip(texts, need_translate_mask) if m]
+    translation = await batch_translate_texts(need_translate_texts, from_lang, to_lang)
+
+    result = []
+    j = 0
+    for i in range(len(texts)):
+        if need_translate_mask[i]:
+            result.append(translation[j])
+            j += 1
+        else:
+            result.append(texts[i])
+
+    return result
