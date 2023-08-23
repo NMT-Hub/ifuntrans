@@ -48,7 +48,7 @@ async def translate_excel(file_path: str, saved_path: str, to_langs: str):
         if territory_name:
             language_name += f" ({territory_name})"
         translations = await translate(source, from_lang, lang)
-        lang2translations[language_name] = hardcode_post_edit(source, translations, from_lang, lang)
+        lang2translations[language_name] = await hardcode_post_edit(source, translations, from_lang, lang)
 
     # save to excel
     writer = pd.ExcelWriter(saved_path, engine="xlsxwriter")

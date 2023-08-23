@@ -1,6 +1,7 @@
 # Merge worksheet from multiple Excel files into one Excel file
 
 import argparse
+import asyncio
 import re
 
 import langcodes
@@ -34,7 +35,7 @@ def _duplicate_group_func(row):
     return row
 
 
-def pe(input_file, output_file):
+async def pe(input_file, output_file):
     # Read input file
     df = pandas.read_excel(input_file, sheet_name=None)
     main_sheet = df["Translation Summary"]
@@ -49,27 +50,11 @@ def pe(input_file, output_file):
         src_lang = langcodes.find(src_lang_name).language
         tgt_lang = langcodes.find(sheet_name).language
 
-        results = hardcode_post_edit(sheet_df[columns[1]].tolist(), sheet_df[columns[-1]].tolist(), src_lang, tgt_lang)
+        results = await hardcode_post_edit(
+            sheet_df[columns[1]].tolist(), sheet_df[columns[-1]].tolist(), src_lang, tgt_lang
+        )
         sheet_df["Hardcode PE"] = results
         main_sheet[sheet_name].update(sheet_df["Hardcode PE"])
-
-        # # group by id
-        # sheet_df["ChatGPT Fix Consistency"] = None
-        # group_prefix = sheet_df.apply(_prefix_group_func, axis=1).groupby(columns[0])
-        # group_suffix = sheet_df.apply(_suffix_group_func, axis=1).groupby(columns[0])
-        # for _, group_df in chain(group_prefix, group_suffix):
-        #     if group_df.shape[0] < 10:
-        #         continue
-
-        #     prev_result = group_df[columns[-1]].tolist()
-        #     group_results = chatgpt_doc_translate(
-        #         group_df[columns[1]].tolist(), prev_result, src_lang, tgt_lang
-        #     )
-
-        #     group_df["ChatGPT Fix Consistency"] = group_results
-        #     sheet_df.update(group_df, overwrite=False)
-
-        # main_sheet[sheet_name].update(sheet_df["ChatGPT Fix Consistency"])
 
         # group by duplicate
         sheet_df["HardCoding Fix Consistency"] = None
@@ -114,7 +99,7 @@ def pe(input_file, output_file):
             sheet_df.to_excel(writer, sheet_name=sheet_name, index=False)
 
 
-def main():
+async def main():
     # Parse arguments
     parser = argparse.ArgumentParser(description="Post Editing Translation")
     parser.add_argument("input_file", help="input file")
@@ -122,8 +107,8 @@ def main():
     args = parser.parse_args()
 
     # Merge worksheet from multiple Excel files into one Excel file
-    pe(args.input_file, args.output_file)
+    await pe(args.input_file, args.output_file)
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

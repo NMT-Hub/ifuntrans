@@ -25,7 +25,7 @@ def _normalize_placeholder(matched_obj: re.Match) -> str:
     return re.sub(r"\s+", "", matched_obj.group(0))
 
 
-def hardcode_post_edit(origin: List[str], target: List[str], src_lang: str, tgt_lang: str) -> List[str]:
+async def hardcode_post_edit(origin: List[str], target: List[str], src_lang: str, tgt_lang: str) -> List[str]:
     """
     Hardcode post edit.
     """
@@ -48,31 +48,33 @@ def hardcode_post_edit(origin: List[str], target: List[str], src_lang: str, tgt_
         if not varify_placeholders(src, tgt):
             tgt = ""
 
+            start, end = 0, 0
             for seg in re.finditer(spliter, src):
                 start, end = seg.span()
                 if src[:start]:
-                    tgt += translate_text(src[:start], src_lang, tgt_lang)
+                    tgt += await translate_text(src[:start], src_lang, tgt_lang)
 
                 groups = seg.groupdict()
 
                 if groups["colorprefix"]:
                     tgt += (
                         groups["colorprefix"]
-                        + translate_text(groups["colorcontent"], src_lang, tgt_lang)
+                        + await translate_text(groups["colorcontent"], src_lang, tgt_lang)
                         + groups["colorsuffix"]
                     )
                 elif groups["boldprefix"]:
                     tgt += (
                         groups["boldprefix"]
-                        + translate_text(groups["boldcontent"], src_lang, tgt_lang)
+                        + await translate_text(groups["boldcontent"], src_lang, tgt_lang)
                         + groups["boldsuffix"]
                     )
 
             if src[end:]:
-                tgt += translate_text(src[end:], src_lang, tgt_lang)
+                tgt += await translate_text(src[end:], src_lang, tgt_lang)
 
         # Upper case First letter
-        tgt = tgt[0].upper() + tgt[1:]
+        if tgt:  # In case of empty string
+            tgt = tgt[0].upper() + tgt[1:]
 
         # Normalize Roman number
         tgt = re.sub(r"Ⅰ", "I", tgt)

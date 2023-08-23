@@ -1,6 +1,7 @@
 import asyncio
 import os
 import re
+import logging
 import warnings
 from itertools import chain
 from typing import Dict, Iterable, List, Tuple
@@ -9,6 +10,7 @@ import guidance
 import langcodes
 import openai
 import tiktoken
+from tenacity import retry, stop_after_attempt, wait_fixed
 
 AZURE_OPENAI_ENDPOINT = os.environ["AZURE_OPENAI_ENDPOINT"]
 AZURE_OPENAI_API_KEY = os.environ["AZURE_OPENAI_API_KEY"]
@@ -70,9 +72,10 @@ You will be provided with a sentence in {src_lang}, and your task is to translat
 """
 
 
+@retry(wait=wait_fixed(1), retry_error_callback=lambda x: print("ChatGPT retrying"))
 async def create_chat_completion(order: int, messages: List[Dict[str, str]]):
     chat_completion_resp = await openai.ChatCompletion.acreate(
-        model="gpt-3.5-turbo", messages=messages, timeout=60, deployment_id=DEPLOYMENT_ID, temperature=0.0
+        model="gpt-3.5-turbo", messages=messages, timeout=30, deployment_id=DEPLOYMENT_ID, temperature=0.0
     )
     return order, chat_completion_resp
 
@@ -102,13 +105,15 @@ async def _chatgpt_translate(
         tasks.append(chat_completion_resp)
 
     fixed = []
+    print(f"ChatGPT Translating {len(tasks)} chunks")
     for future in asyncio.as_completed(tasks):
+        print(f"ChatGPT finish {len(fixed) + 1}/{len(tasks)} chunks")
         order, chat_completion_resp = await future
         response = chat_completion_resp.choices[0].message.content
         answer = response.strip().split("\n")
 
         src, tgt = chunked[order]
-        
+
         # In case that there are multiple new lines in the source sentence
         translations = []
         cur = 0
