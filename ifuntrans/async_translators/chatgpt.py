@@ -1,7 +1,6 @@
 import asyncio
 import os
 import re
-import logging
 import warnings
 from itertools import chain
 from typing import Dict, Iterable, List, Tuple
@@ -11,6 +10,8 @@ import langcodes
 import openai
 import tiktoken
 from tenacity import retry, stop_after_attempt, wait_fixed
+
+from ifuntrans.async_translators.google import batch_translate_texts as google_batch_translate_texts
 
 AZURE_OPENAI_ENDPOINT = os.environ["AZURE_OPENAI_ENDPOINT"]
 AZURE_OPENAI_API_KEY = os.environ["AZURE_OPENAI_API_KEY"]
@@ -41,7 +42,7 @@ openai.api_version = "2023-05-15"
 tokenizer = tiktoken.encoding_for_model("gpt-4")
 
 
-def chunk(source: List[str], target: List[str]) -> Iterable[Tuple[List[str], List[str]]]:
+def chunk(source: List[str], target: List[str], max_length=MAX_LENGTH) -> Iterable[Tuple[List[str], List[str]]]:
     source_chunk = []
     target_chunk = []
     cur_len = 0
@@ -49,7 +50,7 @@ def chunk(source: List[str], target: List[str]) -> Iterable[Tuple[List[str], Lis
         len_src = len(tokenizer.encode(src))
         # len_tgt = len(tokenizer.encode(tgt))
         len_tgt = 0
-        if len_src + len_tgt + cur_len > MAX_LENGTH:
+        if len_src + len_tgt + cur_len > max_length:
             yield source_chunk, target_chunk
             source_chunk = []
             target_chunk = []
@@ -67,12 +68,13 @@ CHATGPT_DOC_TRANSLATE_PROMPT = """
 You will be provided with a sentence in {src_lang}, and your task is to translate it into {tgt_lang}.
 
 1. Please output the translations in the same order as the input sentences (one translation per line).
-2. Please do not add or remove any punctuation marks.
+2. Please do not add or remove any punctuation marks or any numbers.
 3. Please don't do any explaining.
+4. Please don't change romman numerals to arabic numerals.
 """
 
 
-@retry(wait=wait_fixed(1), retry_error_callback=lambda x: print("ChatGPT retrying"))
+@retry(stop=stop_after_attempt(3), wait=wait_fixed(1), retry_error_callback=lambda x: print("ChatGPT retrying"))
 async def create_chat_completion(order: int, messages: List[Dict[str, str]]):
     chat_completion_resp = await openai.ChatCompletion.acreate(
         model="gpt-3.5-turbo", messages=messages, timeout=30, deployment_id=DEPLOYMENT_ID, temperature=0.0
@@ -81,13 +83,13 @@ async def create_chat_completion(order: int, messages: List[Dict[str, str]]):
 
 
 async def _chatgpt_translate(
-    origin: List[str], target: List[str], src_lang: str, tgt_lang: str, instructions=""
+    origin: List[str], target: List[str], src_lang: str, tgt_lang: str, instructions="", max_length=MAX_LENGTH
 ) -> List[str]:
     src_lang_name = langcodes.get(src_lang).display_name()
     tgt_lang_name = langcodes.get(tgt_lang).display_name()
 
     tasks = []
-    chunked = list(chunk(origin, target))
+    chunked = list(chunk(origin, target, max_length=max_length))
     for i, (src, tgt) in enumerate(chunked):
         query = ""
         for s, t in zip(src, tgt):
@@ -122,6 +124,7 @@ async def _chatgpt_translate(
             translations.append("\n".join(answer[cur : cur + num_new_lines + 1]))
             cur += num_new_lines + 1
 
+        translations = [x.strip() for x in translations if x.strip()]
         if len(translations) != len(tgt):
             warnings.warn(
                 f"ChatGPT Doc Translate failed. Please check the following sentences:\n"
@@ -137,9 +140,35 @@ async def _chatgpt_translate(
     return fixed
 
 
-async def batch_translate_texts(texts: List[str], source_language_code: str, target_language_codes: str) -> List[str]:
-    mock_target = ["Openai 翻译失败"] * len(texts)
-    return await _chatgpt_translate(texts, mock_target, source_language_code, target_language_codes)
+TRANSLATION_FAILURE = "<|Openai 翻译失败|>"
+
+
+async def batch_translate_texts(texts: List[str], source_language_code: str, target_language_code: str) -> List[str]:
+    mock_target = [TRANSLATION_FAILURE] * len(texts)
+    translations = mock_target
+
+    max_length = MAX_LENGTH
+    while TRANSLATION_FAILURE in translations and max_length > 0:
+        failure_indices = [i for i, x in enumerate(translations) if x == TRANSLATION_FAILURE]
+        cur_texts = [texts[i] for i in failure_indices]
+        cur_target = [mock_target[i] for i in failure_indices]
+        cur_translations = await _chatgpt_translate(
+            cur_texts, cur_target, source_language_code, target_language_code, max_length=max_length
+        )
+        max_length = max_length - 200
+
+        for i, x in zip(failure_indices, cur_translations):
+            translations[i] = x
+
+    # If still failed, use google translate
+    if TRANSLATION_FAILURE in translations:
+        failure_indices = [i for i, x in enumerate(translations) if x == TRANSLATION_FAILURE]
+        cur_texts = [texts[i] for i in failure_indices]
+        cur_translations = await google_batch_translate_texts(cur_texts, source_language_code, target_language_code)
+        for i, x in zip(failure_indices, cur_translations):
+            translations[i] = x
+
+    return translations
 
 
 async def translate_text(text, source_language_code, target_language_code):
