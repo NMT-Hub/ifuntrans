@@ -67,7 +67,7 @@ def assert_same_tags(html1, html2):
 """,
         open(os.path.join(os.path.dirname(__file__), "assets/page.html")).read(),
         "你好",
-        # "<p>你就像那一把火，熊熊火焰燃烧了我</p>",  # TODO: fasttext -> google lang detect
+        "<p>你就像那一把火，熊熊火焰燃烧了我</p>",  # TODO: fasttext -> google lang detect
     ],
 )
 def test_translate_html(client, html_text):

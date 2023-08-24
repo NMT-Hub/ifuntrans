@@ -100,7 +100,7 @@ async def translate(
     if request.type == "text":
         sourceLan = request.sourceLan
         if sourceLan == "auto":
-            sourceLan = single_detection(request.translateSource)
+            sourceLan = await single_detection(request.translateSource)
         engine = getattr(translators, request.engine)
         translation = await engine.translate_text(request.translateSource, sourceLan, request.targetLan)
         return TranslationResponse(

@@ -43,7 +43,7 @@ async def translate_html(html_content: str, source_language: str, target_languag
 
     extract_text(soup)
     if source_language == "auto":
-        source_language = single_detection("".join(all_text))
+        source_language = await single_detection("".join(all_text))
     translations = await batch_translate_texts(all_text, source_language, target_language)
 
     def replace_text(node):

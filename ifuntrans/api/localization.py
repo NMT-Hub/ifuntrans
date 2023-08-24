@@ -11,7 +11,7 @@ from ifuntrans.translate import translate
 from ifuntrans.utils import IFUN_CALLBACK_URL, S3_DEFAULT_BUCKET, S3Client, get_s3_key_from_id
 
 
-def read_excel(file_path: str) -> Tuple[pd.DataFrame, str]:
+async def read_excel(file_path: str) -> Tuple[pd.DataFrame, str]:
     """
     Read the given excel file.
     :param file_path: The path to the excel file.
@@ -27,7 +27,7 @@ def read_excel(file_path: str) -> Tuple[pd.DataFrame, str]:
 
     # random select 5 rows to detect language
     sample = dataframe.sample(5)
-    lang = single_detection(" ".join(sample.iloc[:, 1].tolist()))
+    lang = await single_detection(" ".join(sample.iloc[:, 1].tolist()))
 
     # change column name
     dataframe.columns = ["ID", langcodes.get(lang).language_name()]
@@ -36,7 +36,7 @@ def read_excel(file_path: str) -> Tuple[pd.DataFrame, str]:
 
 
 async def translate_excel(file_path: str, saved_path: str, to_langs: str):
-    df, from_lang = read_excel(file_path)
+    df, from_lang = await read_excel(file_path)
     ids = df.iloc[:, 0].tolist()
     source = df.iloc[:, 1].tolist()
     to_langs = to_langs.split(",")
