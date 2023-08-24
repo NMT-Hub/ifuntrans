@@ -71,10 +71,11 @@ You will be provided with a sentence in {src_lang}, and your task is to translat
 2. Please do not add or remove any punctuation marks or any numbers.
 3. Please don't do any explaining.
 4. Please don't change romman numerals to arabic numerals.
-"""
+5. Please use title case for short sentences or phrases.
+"""  # TODO: Dynamic load abbreviations from database
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_fixed(1), retry_error_callback=lambda x: print("ChatGPT retrying"))
+@retry(stop=stop_after_attempt(3), wait=wait_fixed(1), retry_error_callback=lambda _: print("ChatGPT retrying"))
 async def create_chat_completion(order: int, messages: List[Dict[str, str]]):
     chat_completion_resp = await openai.ChatCompletion.acreate(
         model="gpt-3.5-turbo", messages=messages, timeout=30, deployment_id=DEPLOYMENT_ID, temperature=0.0
