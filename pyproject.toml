@@ -24,6 +24,7 @@ aioboto3 = "^11.3.0"
 gptcache = "^0.1.40"
 titlecase = "^2.4"
 more-itertools = "^10.1.0"
+whoosh = "^2.7.4"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.0"

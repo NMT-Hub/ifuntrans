@@ -1,4 +1,3 @@
-import re
 from typing import Annotated, Optional
 
 import fastapi
@@ -6,8 +5,8 @@ import pydantic
 
 import ifuntrans.async_translators as translators
 from ifuntrans.api import IfunTransModel
-from ifuntrans.api.localization import translate_s3_excel_task
 from ifuntrans.api.html import translate_html
+from ifuntrans.api.localization import translate_s3_excel_task
 from ifuntrans.lang_detection import single_detection
 from ifuntrans.utils import get_s3_key_from_id
 
