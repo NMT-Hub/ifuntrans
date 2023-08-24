@@ -1,5 +1,6 @@
 import re
 from typing import List
+from titlecase import titlecase
 
 from ifuntrans.async_translators.google import translate_text
 
@@ -76,18 +77,9 @@ async def hardcode_post_edit(origin: List[str], target: List[str], src_lang: str
         if tgt:  # In case of empty string
             tgt = tgt[0].upper() + tgt[1:]
 
-        # Normalize Roman number
-        tgt = re.sub(r"Ⅰ", "I", tgt)
-        tgt = re.sub(r"Ⅱ", "II", tgt)
-        tgt = re.sub(r"Ⅲ", "III", tgt)
-        tgt = re.sub(r"Ⅳ", "IV", tgt)
-        tgt = re.sub(r"Ⅴ", "V", tgt)
-        tgt = re.sub(r"Ⅵ", "VI", tgt)
-        tgt = re.sub(r"Ⅶ", "VII", tgt)
-        tgt = re.sub(r"Ⅷ", "VIII", tgt)
-        tgt = re.sub(r"Ⅸ", "IX", tgt)
-        tgt = re.sub(r"Ⅹ", "X", tgt)
-        tgt = re.sub(r"Ⅺ", "XI", tgt)
-        tgt = re.sub(r"Ⅻ", "XII", tgt)
+        # titlecase for short sentence
+        if len(tgt.split()) <= 4:
+            tgt = titlecase(tgt)
+
         answer.append(tgt)
     return answer

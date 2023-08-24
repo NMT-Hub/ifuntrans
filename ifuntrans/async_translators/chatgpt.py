@@ -71,7 +71,6 @@ You will be provided with a sentence in {src_lang}, and your task is to translat
 2. Please do not add or remove any punctuation marks or any numbers.
 3. Please don't do any explaining.
 4. Please don't change romman numerals to arabic numerals.
-5. Please use title case for short sentences or phrases.
 """  # TODO: Dynamic load abbreviations from database
 
 
