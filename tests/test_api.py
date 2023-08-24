@@ -49,9 +49,10 @@ def assert_same_tags(html1, html2):
 
 
 @pytest.mark.parametrize(
-    "html_text",
+    "html_text, source_lang, target_lang",
     [
-        """
+        (
+            """
         <div>&nbsp;</div>
 <div>&nbsp;</div>
 <div>这是一封测试邮件</div>
@@ -65,24 +66,28 @@ def assert_same_tags(html1, html2):
 <p>&nbsp;</p>
 </div>
 """,
-        open(os.path.join(os.path.dirname(__file__), "assets/page.html")).read(),
-        "你好",
-        "<p>你就像那一把火，熊熊火焰燃烧了我</p>",  # TODO: fasttext -> google lang detect
+            "zh",
+            "en",
+        ),
+        (open(os.path.join(os.path.dirname(__file__), "assets/page.html")).read(), "zh", "en"),
+        (open(os.path.join(os.path.dirname(__file__), "assets/page2.html")).read(), "en", "zh-CN"),
+        ("你好", "zh", "en"),
+        ("<p>你就像那一把火，熊熊火焰燃烧了我</p>", "zh", "en"),
     ],
 )
-def test_translate_html(client, html_text):
+def test_translate_html(client, html_text, source_lang, target_lang):
     request = {
         "type": "html",
         "engine": "google",
         "sourceLan": "auto",
-        "targetLan": "en",
+        "targetLan": target_lang,
         "translateSource": html_text,
     }
 
     response = client.post("/translate", json=request).json()
     response_model = translate.TranslationResponse(**response)
     assert response_model.code == 200
-    assert langcodes.closest_supported_match(response_model.sourceLan, ["zh-CN"]) == "zh-CN"
+    assert langcodes.closest_supported_match(response_model.sourceLan, [source_lang]) == source_lang
 
     translation = response_model.data
     # assert all html tags are same as original
