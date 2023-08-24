@@ -4,6 +4,7 @@ from typing import List
 
 import httpx
 import langcodes
+from more_itertools import chunked
 
 GOOGLE_API_KEY = os.environ["GOOGLE_API_KEY"]
 URL = f"https://translation.googleapis.com/language/translate/v2?key={GOOGLE_API_KEY}"
@@ -34,11 +35,15 @@ async def batch_translate_texts(texts: List[str], source_language_code: str, tar
     if source_language_code == target_language_code:
         return texts
 
-    payload = {"q": texts, "target": target_language_code, "source": source_language_code}
-    async with httpx.AsyncClient() as client:
-        response = await client.post(URL, json=payload)
-        data = response.json()
-        return [d["translatedText"] for d in data["data"]["translations"]]
+    translations = []
+    for chunk in chunked(texts, 128):  # Google Translate API has a limit of 128 texts per request
+        payload = {"q": chunk, "target": target_language_code, "source": source_language_code}
+        async with httpx.AsyncClient() as client:
+            response = await client.post(URL, json=payload)
+            data = response.json()
+            translations.extend([d["translatedText"] for d in data["data"]["translations"]])
+
+    return translations
 
 
 async def translate_text(text, source_language_code, target_language_code):
