@@ -7,6 +7,7 @@ import pydantic
 import ifuntrans.async_translators as translators
 from ifuntrans.api import IfunTransModel
 from ifuntrans.api.localization import translate_s3_excel_task
+from ifuntrans.api.html import translate_html
 from ifuntrans.lang_detection import single_detection
 from ifuntrans.utils import get_s3_key_from_id
 
@@ -96,17 +97,21 @@ async def translate(
     ],
     background_tasks: fastapi.BackgroundTasks,
 ) -> TranslationResponse:
-    if request.type in ("text", "html"):
+    if request.type == "text":
         sourceLan = request.sourceLan
         if sourceLan == "auto":
-            if request.type == "text":
-                sourceLan = single_detection(request.translateSource)
-            else:
-                text = re.sub(r"<[^>]*>", "", request.translateSource)
-                sourceLan = single_detection(text)
-
+            sourceLan = single_detection(request.translateSource)
         engine = getattr(translators, request.engine)
         translation = await engine.translate_text(request.translateSource, sourceLan, request.targetLan)
+        return TranslationResponse(
+            data=translation,
+            sourceLan=sourceLan,
+            targetLan=request.targetLan,
+            engine=request.engine,
+        )
+    elif request.type == "html":
+        sourceLan = request.sourceLan
+        translation, sourceLan = await translate_html(request.translateSource, sourceLan, request.targetLan)
         return TranslationResponse(
             data=translation,
             sourceLan=sourceLan,

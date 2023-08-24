@@ -48,8 +48,10 @@ def assert_same_tags(html1, html2):
     assert tags1 == tags2, f"Different tags found: {tags1.symmetric_difference(tags2)}"
 
 
-def test_translate_html(client):
-    html_text = """
+@pytest.mark.parametrize(
+    "html_text",
+    [
+        """
         <div>&nbsp;</div>
 <div>&nbsp;</div>
 <div>这是一封测试邮件</div>
@@ -62,7 +64,12 @@ def test_translate_html(client):
 <div id="signature">
 <p>&nbsp;</p>
 </div>
-        """
+""",
+        open(os.path.join(os.path.dirname(__file__), "assets/page.html")).read(),
+        "你好",
+    ],
+)
+def test_translate_html(client, html_text):
     request = {
         "type": "html",
         "engine": "google",
