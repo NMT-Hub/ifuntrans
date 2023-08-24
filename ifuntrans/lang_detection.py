@@ -14,3 +14,6 @@ def single_detection(text):
     # Extracting language code from prediction. The output format is '__label__<lang_code>'
     lang_code = predictions[0][0].replace("__label__", "")
     return lang_code
+
+
+

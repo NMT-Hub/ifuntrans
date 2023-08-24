@@ -10,7 +10,7 @@ URL = f"https://translation.googleapis.com/language/translate/v2?key={GOOGLE_API
 async def batch_translate_texts(
     texts: List[str], source_language_code: str, target_language_code: str
 ) -> List[str]:
-    payload = {"q": texts, "source": source_language_code, "target": target_language_code}
+    payload = {"q": texts, "target": target_language_code}
     async with httpx.AsyncClient() as client:
         response = await client.post(URL, json=payload)
         response.raise_for_status()
