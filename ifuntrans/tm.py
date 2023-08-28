@@ -8,7 +8,7 @@ from whoosh.fields import ID, TEXT, Schema
 from whoosh.filedb.filestore import RamStorage
 from whoosh.qparser import OrGroup, QueryParser
 
-from ifuntrans.async_translators.chatgpt import tokenizer
+from ifuntrans.tokenizer import detokenize, tokenize
 
 
 @cache
@@ -20,17 +20,6 @@ def get_index_path():
 @cache
 def get_tm_path():
     return (pathlib.Path(__file__).parent.parent / "assets" / "tm.xlsx").resolve().as_posix()
-
-
-def tokenize(string: str) -> str:
-    tokens = tokenizer.encode(string)
-    return " ".join([str(token) for token in tokens])
-
-
-def detokenize(string: str) -> str:
-    tokens = string.split(" ")
-    tokens = [int(token) for token in tokens]
-    return tokenizer.decode(tokens)
 
 
 def init_tm_indexing():
@@ -77,3 +66,6 @@ def search_tm(text: str, source_lang: str, target_lang: str, limit=1) -> Tuple[s
         searched_source = detokenize(results[0][source_lang])
         searched_target = detokenize(results[0][target_lang])
         return searched_source, searched_target
+
+
+init_tm_indexing()

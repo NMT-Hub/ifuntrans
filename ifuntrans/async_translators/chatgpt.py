@@ -5,13 +5,13 @@ import warnings
 from itertools import chain
 from typing import Dict, Iterable, List, Tuple
 
-import guidance
 import langcodes
 import openai
-import tiktoken
 from tenacity import retry, stop_after_attempt, wait_fixed
 
 from ifuntrans.async_translators.google import batch_translate_texts as google_batch_translate_texts
+from ifuntrans.tm import search_tm
+from ifuntrans.tokenizer import tokenizer
 
 AZURE_OPENAI_ENDPOINT = os.environ["AZURE_OPENAI_ENDPOINT"]
 AZURE_OPENAI_API_KEY = os.environ["AZURE_OPENAI_API_KEY"]
@@ -19,16 +19,16 @@ DEPLOYMENT_ID = os.environ["DEPLOYMENT_ID"]
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 
 # set the default language model used to execute guidance programs
-guidance.llm = guidance.llms.OpenAI(
-    # "gpt-3.5-turbo",
-    # api_key=OPENAI_API_KEY,
-    "gpt-4",
-    api_key=AZURE_OPENAI_API_KEY,
-    api_type="azure",
-    api_base=AZURE_OPENAI_ENDPOINT,
-    api_version="2023-05-15",
-    deployment_id=DEPLOYMENT_ID,
-)
+# guidance.llm = guidance.llms.OpenAI(
+#     # "gpt-3.5-turbo",
+#     # api_key=OPENAI_API_KEY,
+#     "gpt-4",
+#     api_key=AZURE_OPENAI_API_KEY,
+#     api_type="azure",
+#     api_base=AZURE_OPENAI_ENDPOINT,
+#     api_version="2023-05-15",
+#     deployment_id=DEPLOYMENT_ID,
+# )
 
 
 MAX_LENGTH = 500
@@ -38,8 +38,6 @@ openai.api_type = "azure"
 openai.api_key = AZURE_OPENAI_API_KEY
 openai.api_base = AZURE_OPENAI_ENDPOINT
 openai.api_version = "2023-05-15"
-
-tokenizer = tiktoken.encoding_for_model("gpt-4")
 
 
 def chunk(source: List[str], target: List[str], max_length=MAX_LENGTH) -> Iterable[Tuple[List[str], List[str]]]:
@@ -100,9 +98,26 @@ async def _chatgpt_translate(
         system_prompt = CHATGPT_DOC_TRANSLATE_PROMPT.format(
             src_lang=src_lang_name, tgt_lang=tgt_lang_name, instructions=instructions
         )
+        example_source = []
+        example_target = []
+        for s in src:
+            es, et = search_tm(s, src_lang, tgt_lang)
+            if not es or not et:
+                continue
+            example_source.append(es)
+            example_target.append(et)
+        messages = [{"role": "system", "content": system_prompt}]
+
+        if example_source and example_target:
+            messages.append({"role": "user", "content": "\n".join(example_source)})
+            messages.append({"role": "assistant", "content": "\n".join(example_target)})
+
         chat_completion_resp = create_chat_completion(
             order=i,
-            messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": query}],
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": query},
+            ],
         )
         tasks.append(chat_completion_resp)
 

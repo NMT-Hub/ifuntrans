@@ -18,7 +18,7 @@ def need_translate_en(text):
 
 
 MAPPING = {
-    "zh": need_translate_zh,
+    # "zh": need_translate_zh,
     "en": need_translate_en,
 }
 

@@ -16,7 +16,6 @@ beautifulsoup4 = "^4.12.2"
 revchatgpt = "^6.8.6"
 pandas = {extras = ["excel"], version = "^2.0.3"}
 tqdm = "^4.65.0"
-guidance = "^0.0.64"
 opencc = "^1.1.6"
 tiktoken = "^0.4.0"
 tenacity = "^8.2.3"
