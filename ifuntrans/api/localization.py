@@ -41,6 +41,12 @@ async def translate_excel(file_path: str, saved_path: str, to_langs: str):
     source = df.iloc[:, 1].tolist()
     to_langs = to_langs.split(",")
 
+    # If en is in to_langs, use it as triage
+    # matched_en = langcodes.closest_supported_match("en", to_langs)
+    # if matched_en:
+    #     to_langs.remove(matched_en)
+    #     to_langs.insert(0, matched_en)
+
     lang2translations = {}
     for lang in to_langs:
         language_name = langcodes.get(lang).language_name()
@@ -49,6 +55,10 @@ async def translate_excel(file_path: str, saved_path: str, to_langs: str):
             language_name += f" ({territory_name})"
         translations = await translate(source, from_lang, lang)
         lang2translations[language_name] = await hardcode_post_edit(source, translations, from_lang, lang)
+
+        # if lang == matched_en:
+        #     source = translations
+        #     from_lang = matched_en
 
     # save to excel
     writer = pd.ExcelWriter(saved_path, engine="xlsxwriter")

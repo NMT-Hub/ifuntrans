@@ -3,6 +3,7 @@ import pathlib
 from functools import cache
 from typing import Tuple
 
+import langcodes
 import pandas
 from whoosh.fields import ID, TEXT, Schema
 from whoosh.filedb.filestore import RamStorage
@@ -24,6 +25,7 @@ def get_tm_path():
 
 def init_tm_indexing():
     global IX
+    global LANGS
     tm_df = pandas.read_excel(get_tm_path())
 
     # skip first two rows
@@ -54,9 +56,18 @@ def init_tm_indexing():
             **docs,
         )
     writer.commit()
+    LANGS = langs
 
 
 def search_tm(text: str, source_lang: str, target_lang: str, limit=1) -> Tuple[str, str]:
+    if source_lang not in LANGS:
+        source_lang = langcodes.closest_supported_match(source_lang, LANGS)
+    if target_lang not in LANGS:
+        target_lang = langcodes.closest_supported_match(target_lang, LANGS)
+
+    if not source_lang or not target_lang:
+        return "", ""
+
     with IX.searcher() as searcher:
         tokens = tokenize(text)
         query = QueryParser(source_lang, IX.schema, group=OrGroup).parse(tokens)

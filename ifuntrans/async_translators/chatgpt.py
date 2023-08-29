@@ -48,14 +48,16 @@ def chunk(source: List[str], target: List[str], max_length=MAX_LENGTH) -> Iterab
         len_src = len(tokenizer.encode(src))
         # len_tgt = len(tokenizer.encode(tgt))
         len_tgt = 0
-        if len_src + len_tgt + cur_len > max_length:
+
+        source_chunk.append(src)
+        target_chunk.append(tgt)
+        cur_len += len_src + len_tgt
+
+        if cur_len > max_length:
             yield source_chunk, target_chunk
             source_chunk = []
             target_chunk = []
             cur_len = 0
-        source_chunk.append(src)
-        target_chunk.append(tgt)
-        cur_len += len_src + len_tgt
 
     if source_chunk:
         yield source_chunk, target_chunk
@@ -63,12 +65,12 @@ def chunk(source: List[str], target: List[str], max_length=MAX_LENGTH) -> Iterab
 
 CHATGPT_DOC_TRANSLATE_PROMPT = """
 {instructions}
-You will be provided with a sentence in {src_lang}, and your task is to translate it into {tgt_lang}.
+You will be provided with sentences, and your task is to translate it into {tgt_lang}.
 
 1. Please output the translations in the same order as the input sentences (one translation per line).
 2. Please do not add or remove any punctuation marks or any numbers.
 3. Please don't do any explaining.
-4. Please don't change romman numerals to arabic numerals.
+4. Please keep the unicode character representation of roman numerals in translations. e.g.: Ⅰ Ⅱ Ⅲ Ⅳ Ⅴ Ⅵ Ⅶ Ⅷ Ⅸ Ⅹ
 """  # TODO: Dynamic load abbreviations from database
 
 
@@ -83,7 +85,7 @@ async def create_chat_completion(order: int, messages: List[Dict[str, str]]):
 async def _chatgpt_translate(
     origin: List[str], target: List[str], src_lang: str, tgt_lang: str, instructions="", max_length=MAX_LENGTH
 ) -> List[str]:
-    src_lang_name = langcodes.get(src_lang).display_name()
+    langcodes.get(src_lang).display_name()
     tgt_lang_name = langcodes.get(tgt_lang).display_name()
 
     tasks = []
@@ -92,12 +94,9 @@ async def _chatgpt_translate(
         query = ""
         for s, t in zip(src, tgt):
             # replace all blank with space
-            s = re.sub(r"\s+", " ", s)
             query += s + "\n"
 
-        system_prompt = CHATGPT_DOC_TRANSLATE_PROMPT.format(
-            src_lang=src_lang_name, tgt_lang=tgt_lang_name, instructions=instructions
-        )
+        system_prompt = CHATGPT_DOC_TRANSLATE_PROMPT.format(tgt_lang=tgt_lang_name, instructions=instructions)
         example_source = []
         example_target = []
         for s in src:
@@ -109,23 +108,26 @@ async def _chatgpt_translate(
         messages = [{"role": "system", "content": system_prompt}]
 
         if example_source and example_target:
-            messages.append({"role": "user", "content": "\n".join(example_source)})
+            messages.append(
+                {
+                    "role": "user",
+                    "content": "Source: \n" + "\n".join(example_source) + f"\n{tgt_lang_name} Translation: \n",
+                }
+            )
             messages.append({"role": "assistant", "content": "\n".join(example_target)})
 
+        messages.append({"role": "user", "content": "Source: \n" + query + f"\n{tgt_lang_name} Translation: \n"})
         chat_completion_resp = create_chat_completion(
             order=i,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": query},
-            ],
+            messages=messages,
         )
         tasks.append(chat_completion_resp)
 
     fixed = []
     print(f"ChatGPT Translating {len(tasks)} chunks")
     for future in asyncio.as_completed(tasks):
-        print(f"ChatGPT finish {len(fixed) + 1}/{len(tasks)} chunks")
         order, chat_completion_resp = await future
+        print(f"ChatGPT finish {len(fixed) + 1}/{len(tasks)} chunks")
         response = chat_completion_resp.choices[0].message.content
         answer = response.strip().split("\n")
 
@@ -140,7 +142,7 @@ async def _chatgpt_translate(
             cur += num_new_lines + 1
 
         translations = [x.strip() for x in translations if x.strip()]
-        if len(translations) != len(tgt):
+        if len(translations) != len(tgt) or cur != len(answer):
             warnings.warn(
                 f"ChatGPT Doc Translate failed. Please check the following sentences:\n"
                 f"Source: {src}\n"
@@ -152,6 +154,12 @@ async def _chatgpt_translate(
 
     fixed.sort(key=lambda x: x[0])
     fixed = list(chain.from_iterable([x[1] for x in fixed]))
+
+    # filter ordianl numbers
+    for i in range(len(fixed)):
+        if re.match(r"\d+\.", fixed[i]) and not re.match(r"\d+\.", origin[i]):
+            fixed[i] = re.sub(r"\d+\.", "", fixed[i]).strip()
+
     return fixed
 
 

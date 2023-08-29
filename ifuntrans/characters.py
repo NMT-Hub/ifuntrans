@@ -12,7 +12,7 @@ def need_translate_zh(text):
 
 def need_translate_en(text):
     # if only contains Numbers, Roman numerals, and Upper case letters, return False
-    if re.search(r"[^0-9A-ZIVX]", text):
+    if not re.search(r"[^0-9A-Z]", text):
         return False
     return True
 
