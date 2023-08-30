@@ -6,7 +6,7 @@ import langcodes
 import pandas as pd
 
 from ifuntrans.lang_detection import single_detection
-from ifuntrans.pe import hardcode_post_edit
+from ifuntrans.pe import post_edit
 from ifuntrans.translate import translate
 from ifuntrans.utils import IFUN_CALLBACK_URL, S3_DEFAULT_BUCKET, S3Client, get_s3_key_from_id
 
@@ -20,7 +20,7 @@ async def read_excel(file_path: str) -> Tuple[pd.DataFrame, str]:
     dataframe = pd.read_excel(file_path)
 
     # assert two columns
-    assert dataframe.shape[1] == 2
+    assert dataframe.shape[1] >= 2
 
     # skip first two rows
     dataframe = dataframe.iloc[2:]
@@ -30,14 +30,14 @@ async def read_excel(file_path: str) -> Tuple[pd.DataFrame, str]:
     lang = await single_detection(" ".join(sample.iloc[:, 1].tolist()))
 
     # change column name
-    dataframe.columns = ["ID", langcodes.get(lang).language_name()]
+    dataframe.columns = ["ID", langcodes.get(lang).language_name()] + dataframe.columns[2:].tolist()
 
     return dataframe, lang
 
 
 async def translate_excel(file_path: str, saved_path: str, to_langs: str):
     df, from_lang = await read_excel(file_path)
-    ids = df.iloc[:, 0].tolist()
+    # ids = df.iloc[:, 0].tolist()
     source = df.iloc[:, 1].tolist()
     to_langs = to_langs.split(",")
 
@@ -53,8 +53,12 @@ async def translate_excel(file_path: str, saved_path: str, to_langs: str):
         territory_name = langcodes.get(lang).territory_name()
         if territory_name:
             language_name += f" ({territory_name})"
-        translations = await translate(source, from_lang, lang)
-        lang2translations[language_name] = await hardcode_post_edit(source, translations, from_lang, lang)
+
+        if language_name in df.columns:
+            translations = df[language_name].tolist()
+        else:
+            translations = await translate(source, from_lang, lang)
+        lang2translations[language_name] = await post_edit(source, translations, from_lang, lang)
 
         # if lang == matched_en:
         #     source = translations
@@ -67,7 +71,8 @@ async def translate_excel(file_path: str, saved_path: str, to_langs: str):
         df_final[language_name] = translations
     df_final.to_excel(writer, sheet_name="Translation Summary", index=False)
     for language_name, translations in lang2translations.items():
-        temp_df = df.copy()
+        # copy first two columns
+        temp_df = df.iloc[:, :2].copy()
         temp_df["Machine Translation"] = translations
         temp_df.to_excel(writer, sheet_name=language_name, index=False)
     writer.close()
