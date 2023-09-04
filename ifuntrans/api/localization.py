@@ -22,8 +22,8 @@ async def read_excel(file_path: str) -> Tuple[pd.DataFrame, str]:
     # assert two columns
     assert dataframe.shape[1] >= 2
 
-    # skip first two rows
-    dataframe = dataframe.iloc[2:]
+    # skip first rows
+    dataframe = dataframe.iloc[1:]
 
     # random select 5 rows to detect language
     sample = dataframe.sample(5)
