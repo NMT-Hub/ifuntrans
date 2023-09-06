@@ -40,29 +40,6 @@ openai.api_base = AZURE_OPENAI_ENDPOINT
 openai.api_version = "2023-05-15"
 
 
-def chunk(source: List[str], target: List[str], max_length=MAX_LENGTH) -> Iterable[Tuple[List[str], List[str]]]:
-    source_chunk = []
-    target_chunk = []
-    cur_len = 0
-    for src, tgt in zip(source, target):
-        len_src = len(tokenizer.encode(src))
-        # len_tgt = len(tokenizer.encode(tgt))
-        len_tgt = 0
-
-        source_chunk.append(src)
-        target_chunk.append(tgt)
-        cur_len += len_src + len_tgt
-
-        if cur_len > max_length:
-            yield source_chunk, target_chunk
-            source_chunk = []
-            target_chunk = []
-            cur_len = 0
-
-    if source_chunk:
-        yield source_chunk, target_chunk
-
-
 CHATGPT_DOC_TRANSLATE_PROMPT = """
 {instructions}
 You will be provided with sentences, and your task is to translate it into {tgt_lang}.
@@ -83,40 +60,64 @@ async def create_chat_completion(order: int, messages: List[Dict[str, str]]):
 
 
 async def _chatgpt_translate(
-    origin: List[str], target: List[str], src_lang: str, tgt_lang: str, instructions="", max_length=MAX_LENGTH
+    origin: List[str],
+    target: List[str],
+    searched_srouces: List[str],
+    searched_targets: List[str],
+    src_lang: str,
+    tgt_lang: str,
+    instructions="",
+    max_length=MAX_LENGTH,
 ) -> List[str]:
     langcodes.get(src_lang).display_name()
     tgt_lang_name = langcodes.get(tgt_lang).display_name()
 
+    def chunk() -> Iterable[Tuple[List[str], List[str]]]:
+        source_chunk = []
+        target_chunk = []
+
+        cur_len = 0
+        for src, tgt, es, et in zip(origin, target, searched_srouces, searched_targets):
+            len_src = len(tokenizer.encode(src))
+            # len_tgt = len(tokenizer.encode(tgt))
+            len_tgt = 0
+
+            source_chunk.append(src)
+            target_chunk.append(tgt)
+            cur_len += len_src + len_tgt
+
+            if cur_len > max_length:
+                yield source_chunk, target_chunk, es, et
+                source_chunk = []
+                target_chunk = []
+                cur_len = 0
+
+        if source_chunk:
+            yield source_chunk, target_chunk, es, et
+
     tasks = []
-    chunked = list(chunk(origin, target, max_length=max_length))
-    for i, (src, tgt) in enumerate(chunked):
+    chunked = list(chunk())
+    for i, (src, tgt, example_source, example_target) in enumerate(chunked):
         query = ""
         for s, t in zip(src, tgt):
             # replace all blank with space
             query += s + "\n"
 
         system_prompt = CHATGPT_DOC_TRANSLATE_PROMPT.format(tgt_lang=tgt_lang_name, instructions=instructions)
-        example_source = []
-        example_target = []
-        for s in src:
-            es, et = search_tm(s, src_lang, tgt_lang)
-            if not es or not et:
-                continue
-            example_source.append(es)
-            example_target.append(et)
         messages = [{"role": "system", "content": system_prompt}]
 
+        example_source = [item for item in example_source if item.strip()]
+        example_target = [item for item in example_target if item.strip()]
         if example_source and example_target:
             messages.append(
                 {
                     "role": "user",
-                    "content": "Source: \n" + "\n".join(example_source) + f"\n{tgt_lang_name} Translation: \n",
+                    "content": "Source: \n" + "\n".join(example_source) + f"\n{tgt_lang_name} Translations: \n",
                 }
             )
             messages.append({"role": "assistant", "content": "\n".join(example_target)})
 
-        messages.append({"role": "user", "content": "Source: \n" + query + f"\n{tgt_lang_name} Translation: \n"})
+        messages.append({"role": "user", "content": "Source: \n" + query + f"\n{tgt_lang_name} Translations: \n"})
         chat_completion_resp = create_chat_completion(
             order=i,
             messages=messages,
@@ -131,7 +132,7 @@ async def _chatgpt_translate(
         response = chat_completion_resp.choices[0].message.content
         answer = response.strip().split("\n")
 
-        src, tgt = chunked[order]
+        src, tgt, _, _ = chunked[order]
 
         # In case that there are multiple new lines in the source sentence
         translations = []
@@ -170,13 +171,32 @@ async def batch_translate_texts(texts: List[str], source_language_code: str, tar
     mock_target = [TRANSLATION_FAILURE] * len(texts)
     translations = mock_target
 
+    # search from TM
+    searched_srouces = []
+    searched_targets = []
+
+    for i, text in enumerate(texts):
+        source, target = search_tm(text, source_language_code, target_language_code)
+        searched_srouces.append(source)
+        searched_targets.append(target)
+        if source == text:
+            translations[i] = target
+
     max_length = MAX_LENGTH
     while TRANSLATION_FAILURE in translations and max_length > 0:
         failure_indices = [i for i, x in enumerate(translations) if x == TRANSLATION_FAILURE]
         cur_texts = [texts[i] for i in failure_indices]
         cur_target = [mock_target[i] for i in failure_indices]
+        [searched_srouces[i] for i in failure_indices]
+        [searched_targets[i] for i in failure_indices]
         cur_translations = await _chatgpt_translate(
-            cur_texts, cur_target, source_language_code, target_language_code, max_length=max_length
+            cur_texts,
+            cur_target,
+            searched_srouces,
+            searched_targets,
+            source_language_code,
+            target_language_code,
+            max_length=max_length,
         )
         max_length = max_length - 200
 
