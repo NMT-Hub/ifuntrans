@@ -38,7 +38,7 @@ async def read_excel(file_path: str) -> Tuple[pd.DataFrame, str]:
 async def translate_excel(file_path: str, saved_path: str, to_langs: str):
     df, from_lang = await read_excel(file_path)
     # ids = df.iloc[:, 0].tolist()
-    source = df.iloc[:, 1].tolist()
+    source = df.iloc[:, 1].apply(str).tolist()
     to_langs = to_langs.split(",")
 
     # If en is in to_langs, use it as triage
