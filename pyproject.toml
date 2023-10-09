@@ -18,7 +18,6 @@ pandas = {extras = ["excel"], version = "^2.0.3"}
 tqdm = "^4.65.0"
 opencc = "^1.1.6"
 tiktoken = "^0.4.0"
-tenacity = "^8.2.3"
 aioboto3 = "^11.3.0"
 gptcache = "^0.1.40"
 titlecase = "^2.4"

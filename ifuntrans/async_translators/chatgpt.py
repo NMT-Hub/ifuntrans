@@ -7,7 +7,7 @@ from typing import Dict, Iterable, List, Tuple
 
 import langcodes
 import openai
-from tenacity import retry, stop_after_attempt, wait_fixed
+from more_itertools import windowed
 
 from ifuntrans.async_translators.google import batch_translate_texts as google_batch_translate_texts
 from ifuntrans.tm import search_tm
@@ -51,12 +51,16 @@ You will be provided with sentences, and your task is to translate it into {tgt_
 """  # TODO: Dynamic load abbreviations from database
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_fixed(1), retry_error_callback=lambda _: print("ChatGPT retrying"))
 async def create_chat_completion(order: int, messages: List[Dict[str, str]]):
-    chat_completion_resp = await openai.ChatCompletion.acreate(
-        model="gpt-3.5-turbo", messages=messages, timeout=30, deployment_id=DEPLOYMENT_ID, temperature=0.0
-    )
-    return order, chat_completion_resp
+    try:
+        chat_completion_resp = await openai.ChatCompletion.acreate(
+            model="gpt-4", messages=messages, timeout=30, deployment_id=DEPLOYMENT_ID, temperature=0.0
+        )
+        response = chat_completion_resp.choices[0].message.content
+    except Exception as e:
+        print(e)
+        response = ""
+    return order, response
 
 
 async def _chatgpt_translate(
@@ -126,32 +130,37 @@ async def _chatgpt_translate(
 
     fixed = []
     print(f"ChatGPT Translating {len(tasks)} chunks")
-    for future in asyncio.as_completed(tasks):
-        order, chat_completion_resp = await future
-        print(f"ChatGPT finish {len(fixed) + 1}/{len(tasks)} chunks")
-        response = chat_completion_resp.choices[0].message.content
-        answer = response.strip().split("\n")
 
-        src, tgt, _, _ = chunked[order]
+    # in case that the number of tasks is too large, we split them into windows
+    for window in windowed(tasks, 10, step=10):
+        # filter None
+        window = [x for x in window if x is not None]
+        for future in asyncio.as_completed(window):
+            order, response = await future
 
-        # In case that there are multiple new lines in the source sentence
-        translations = []
-        cur = 0
-        for s in src:
-            num_new_lines = s.count("\n")
-            translations.append("\n".join(answer[cur : cur + num_new_lines + 1]))
-            cur += num_new_lines + 1
+            print(f"ChatGPT finish {len(fixed) + 1}/{len(tasks)} chunks")
+            answer = response.strip().split("\n")
 
-        translations = [x.strip() for x in translations if x.strip()]
-        if len(translations) != len(tgt) or cur != len(answer):
-            warnings.warn(
-                f"ChatGPT Doc Translate failed. Please check the following sentences:\n"
-                f"Source: {src}\n"
-                f"Target: {tgt}\n"
-                f"Answer: {translations}\n"
-            )
-            translations = tgt
-        fixed.append((order, translations))
+            src, tgt, _, _ = chunked[order]
+
+            # In case that there are multiple new lines in the source sentence
+            translations = []
+            cur = 0
+            for s in src:
+                num_new_lines = s.count("\n")
+                translations.append("\n".join(answer[cur : cur + num_new_lines + 1]))
+                cur += num_new_lines + 1
+
+            translations = [x.strip() for x in translations if x.strip()]
+            if len(translations) != len(tgt) or cur != len(answer):
+                warnings.warn(
+                    f"ChatGPT Doc Translate failed. Please check the following sentences:\n"
+                    f"Source: {src}\n"
+                    f"Target: {tgt}\n"
+                    f"Answer: {translations}\n"
+                )
+                translations = tgt
+            fixed.append((order, translations))
 
     fixed.sort(key=lambda x: x[0])
     fixed = list(chain.from_iterable([x[1] for x in fixed]))

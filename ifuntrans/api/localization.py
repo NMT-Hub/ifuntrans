@@ -1,10 +1,12 @@
 import tempfile
+import re
 from typing import Tuple
 
 import httpx
 import langcodes
 import pandas as pd
 
+from functools import partial
 from ifuntrans.lang_detection import single_detection
 from ifuntrans.pe import post_edit
 from ifuntrans.translate import translate
@@ -38,7 +40,7 @@ async def read_excel(file_path: str) -> Tuple[pd.DataFrame, str]:
 async def translate_excel(file_path: str, saved_path: str, to_langs: str):
     df, from_lang = await read_excel(file_path)
     # ids = df.iloc[:, 0].tolist()
-    source = df.iloc[:, 1].apply(str).tolist()
+    source = df.iloc[:, 1].apply(str).apply(partial(re.sub, "\\n+", "\n")).tolist()
     to_langs = to_langs.split(",")
 
     # If en is in to_langs, use it as triage
