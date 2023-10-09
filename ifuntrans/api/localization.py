@@ -13,7 +13,7 @@ from ifuntrans.translate import translate
 from ifuntrans.utils import IFUN_CALLBACK_URL, S3_DEFAULT_BUCKET, S3Client, get_s3_key_from_id
 
 
-async def read_excel(file_path: str) -> Tuple[pd.DataFrame, str]:
+async def read_excel(file_path: str, source_column: int = 1) -> Tuple[pd.DataFrame, str]:
     """
     Read the given excel file.
     :param file_path: The path to the excel file.
@@ -22,32 +22,26 @@ async def read_excel(file_path: str) -> Tuple[pd.DataFrame, str]:
     dataframe = pd.read_excel(file_path)
 
     # assert two columns
-    assert dataframe.shape[1] >= 2
+    assert dataframe.shape[1] >= source_column + 1, f"Excel file should have at least {source_column + 1} columns."
 
     # skip first rows
+    assert dataframe.shape[0] > 0, "Excel file should have at least one row."
     dataframe = dataframe.iloc[1:]
 
     # random select 5 rows to detect language
-    sample = dataframe.sample(5)
-    lang = await single_detection(" ".join(sample.iloc[:, 1].tolist()))
-
-    # change column name
-    dataframe.columns = ["ID", langcodes.get(lang).language_name()] + dataframe.columns[2:].tolist()
+    if dataframe.shape[0] > 5:
+        sample = dataframe.sample(5)
+    else:
+        sample = dataframe
+    lang = await single_detection(" ".join(sample.iloc[:, source_column].tolist()))
 
     return dataframe, lang
 
 
-async def translate_excel(file_path: str, saved_path: str, to_langs: str):
-    df, from_lang = await read_excel(file_path)
-    # ids = df.iloc[:, 0].tolist()
-    source = df.iloc[:, 1].apply(str).apply(partial(re.sub, "\\n+", "\n")).tolist()
+async def translate_excel(file_path: str, saved_path: str, to_langs: str, source_column: int = 1):
+    df, from_lang = await read_excel(file_path, source_column)
+    source = df.iloc[:, source_column].apply(str).apply(partial(re.sub, "\\n+", "\n")).tolist()
     to_langs = to_langs.split(",")
-
-    # If en is in to_langs, use it as triage
-    # matched_en = langcodes.closest_supported_match("en", to_langs)
-    # if matched_en:
-    #     to_langs.remove(matched_en)
-    #     to_langs.insert(0, matched_en)
 
     lang2translations = {}
     for lang in to_langs:
@@ -61,10 +55,6 @@ async def translate_excel(file_path: str, saved_path: str, to_langs: str):
         else:
             translations = await translate(source, from_lang, lang)
         lang2translations[language_name] = await post_edit(source, translations, from_lang, lang)
-
-        # if lang == matched_en:
-        #     source = translations
-        #     from_lang = matched_en
 
     # save to excel
     writer = pd.ExcelWriter(saved_path, engine="xlsxwriter")
