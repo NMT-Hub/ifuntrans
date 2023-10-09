@@ -25,10 +25,14 @@ async def read_excel(file_path: str, source_column: int = 1) -> Tuple[pd.DataFra
     assert dataframe.shape[1] >= source_column + 1, f"Excel file should have at least {source_column + 1} columns."
 
     # skip first rows
+    assert dataframe.shape[0] > 0, "Excel file should have at least one row."
     dataframe = dataframe.iloc[1:]
 
     # random select 5 rows to detect language
-    sample = dataframe.sample(5)
+    if dataframe.shape[0] > 5:
+        sample = dataframe.sample(5)
+    else:
+        sample = dataframe
     lang = await single_detection(" ".join(sample.iloc[:, source_column].tolist()))
 
     return dataframe, lang
