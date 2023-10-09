@@ -40,7 +40,7 @@ async def read_excel(file_path: str, source_column: int = 1) -> Tuple[pd.DataFra
 
 async def translate_excel(file_path: str, saved_path: str, to_langs: str, source_column: int = 1):
     df, from_lang = await read_excel(file_path, source_column)
-    source = df.iloc[:, 1].apply(str).apply(partial(re.sub, "\\n+", "\n")).tolist()
+    source = df.iloc[:, source_column].apply(str).apply(partial(re.sub, "\\n+", "\n")).tolist()
     to_langs = to_langs.split(",")
 
     lang2translations = {}
