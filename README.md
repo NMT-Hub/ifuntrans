@@ -9,6 +9,10 @@ poetry install
 ```
 poetry run python server.py
 ```
+使用命令行翻译excel文件
+```
+poetry run python main.py /path/to/input.xlsx --languages en,ru --source-column 1
+```
 ## 容器化部署
 构建镜像
 ```
