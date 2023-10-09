@@ -11,9 +11,10 @@ async def main():
     parser.add_argument(
         "--languages", help="The languages to translate to", default="en,zh-TW,id,vi,th,pt-BR,ja,ko,ar,tr"
     )
+    parser.add_argument("--source-column", help="The source column", default=1, type=int)
     args = parser.parse_args()
 
-    await localization.translate_excel(args.file, args.output, args.languages)
+    await localization.translate_excel(args.file, args.output, args.languages, source_column=args.source_column)
 
 
 if __name__ == "__main__":
