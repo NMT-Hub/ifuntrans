@@ -192,7 +192,7 @@ async def batch_translate_texts(texts: List[str], source_language_code: str, tar
             translations[i] = target
 
     max_length = MAX_LENGTH
-    while TRANSLATION_FAILURE in translations and max_length > 0:
+    while TRANSLATION_FAILURE in translations and max_length > 50:
         failure_indices = [i for i, x in enumerate(translations) if x == TRANSLATION_FAILURE]
         cur_texts = [texts[i] for i in failure_indices]
         cur_target = [mock_target[i] for i in failure_indices]
@@ -207,7 +207,7 @@ async def batch_translate_texts(texts: List[str], source_language_code: str, tar
             target_language_code,
             max_length=max_length,
         )
-        max_length = max_length - 200
+        max_length = max_length // 2
 
         for i, x in zip(failure_indices, cur_translations):
             translations[i] = x

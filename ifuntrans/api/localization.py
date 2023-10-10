@@ -1,46 +1,66 @@
-import tempfile
 import re
-from typing import Tuple
+import tempfile
+from functools import partial
+from typing import Tuple, Union
 
 import httpx
 import langcodes
+import numpy as np
 import pandas as pd
 
-from functools import partial
 from ifuntrans.lang_detection import single_detection
 from ifuntrans.pe import post_edit
 from ifuntrans.translate import translate
 from ifuntrans.utils import IFUN_CALLBACK_URL, S3_DEFAULT_BUCKET, S3Client, get_s3_key_from_id
 
 
-async def read_excel(file_path: str, source_column: int = 1) -> Tuple[pd.DataFrame, str]:
+async def read_excel(
+    file_path: str, source_column: int = 1, sheet_name: Union[int, str] = 0
+) -> Tuple[pd.DataFrame, str]:
     """
     Read the given excel file.
     :param file_path: The path to the excel file.
     :return: The dataframe.
     """
-    dataframe = pd.read_excel(file_path)
+    dataframe = pd.read_excel(file_path, sheet_name=sheet_name, engine="openpyxl")
 
     # assert two columns
     assert dataframe.shape[1] >= source_column + 1, f"Excel file should have at least {source_column + 1} columns."
 
-    # skip first rows
     assert dataframe.shape[0] > 0, "Excel file should have at least one row."
-    dataframe = dataframe.iloc[1:]
 
     # random select 5 rows to detect language
     if dataframe.shape[0] > 5:
         sample = dataframe.sample(5)
     else:
         sample = dataframe
-    lang = await single_detection(" ".join(sample.iloc[:, source_column].tolist()))
+    lang = await single_detection(" ".join(sample.iloc[:, source_column].apply(str).tolist()))
 
     return dataframe, lang
 
 
-async def translate_excel(file_path: str, saved_path: str, to_langs: str, source_column: int = 1):
-    df, from_lang = await read_excel(file_path, source_column)
-    source = df.iloc[:, source_column].apply(str).apply(partial(re.sub, "\\n+", "\n")).tolist()
+def normalize_case(text: str) -> str:
+    if text.isupper():
+        if len(text.split()) < 4:
+            return text.title()
+        else:
+            return text.lower()
+    else:
+        return text
+
+
+async def translate_excel(
+    file_path: str, saved_path: str, to_langs: str, source_column: int = 1, sheet_name: Union[int, str] = 0
+):
+    df, from_lang = await read_excel(file_path, source_column, sheet_name)
+    source = (
+        df.iloc[:, source_column]
+        .replace(np.nan, "", regex=True)
+        .apply(str)
+        .apply(partial(re.sub, "\\n+", "\n"))
+        .apply(normalize_case)
+        .tolist()
+    )
     to_langs = to_langs.split(",")
 
     lang2translations = {}
