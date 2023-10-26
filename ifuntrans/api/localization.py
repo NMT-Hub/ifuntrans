@@ -61,10 +61,10 @@ async def translate_excel(
         .apply(normalize_case)
         .tolist()
     )
-    to_langs = to_langs.split(",")
+    to_langs_list = to_langs.split(",")
 
     lang2translations = {}
-    for lang in to_langs:
+    for lang in to_langs_list:
         language_name = langcodes.get(lang).language_name()
         territory_name = langcodes.get(lang).territory_name()
         if territory_name:
@@ -77,7 +77,7 @@ async def translate_excel(
         lang2translations[language_name] = await post_edit(source, translations, from_lang, lang)
 
     # save to excel
-    writer = pd.ExcelWriter(saved_path, engine="xlsxwriter")
+    writer = pd.ExcelWriter(saved_path, engine="openpyxl")
     df_final = df.copy()
     for language_name, translations in lang2translations.items():
         df_final[language_name] = translations
@@ -90,7 +90,7 @@ async def translate_excel(
     writer.close()
 
 
-async def callback(task_id: int, status: int, message: str) -> None:
+async def callback(task_id: str, status: int, message: str) -> None:
     # status 1: success, 2: failed, 3: in progress
     async with httpx.AsyncClient() as client:
         response = await client.post(
