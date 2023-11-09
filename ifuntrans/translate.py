@@ -55,7 +55,7 @@ def opencc_convert(text, lang_from, lang_to):
     return result
 
 
-async def translate(texts: List[str], from_lang: str, to_lang: str) -> List[str]:
+async def translate(texts: List[str], from_lang: str, to_lang: str, **kwargs) -> List[str]:
     """
     Translate the given dataframe to the given languages.
     :param texts: The texts to translate.
@@ -70,7 +70,7 @@ async def translate(texts: List[str], from_lang: str, to_lang: str) -> List[str]
     need_translate_func = get_need_translate_func(from_lang)
     need_translate_mask = [need_translate_func(text) for text in texts]
     need_translate_texts = [t for t, m in zip(texts, need_translate_mask) if m]
-    translation = await batch_translate_texts(need_translate_texts, from_lang, to_lang)
+    translation = await batch_translate_texts(need_translate_texts, from_lang, to_lang, **kwargs)
 
     result = []
     j = 0

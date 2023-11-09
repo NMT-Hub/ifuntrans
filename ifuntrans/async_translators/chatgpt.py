@@ -3,14 +3,14 @@ import os
 import re
 import warnings
 from itertools import chain
-from typing import Dict, Iterable, List, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
 import langcodes
 import openai
 from more_itertools import windowed
 
 from ifuntrans.async_translators.google import batch_translate_texts as google_batch_translate_texts
-from ifuntrans.tm import search_tm
+from ifuntrans.tm import TranslationMemory
 from ifuntrans.tokenizer import tokenizer
 
 AZURE_OPENAI_ENDPOINT = os.environ["AZURE_OPENAI_ENDPOINT"]
@@ -63,6 +63,20 @@ async def create_chat_completion(order: int, messages: List[Dict[str, str]]):
     return order, response
 
 
+def _fix_ordianl_numbers(src: str, tgt: str) -> str:
+    """
+    Filter ordinal numbers.
+    """
+    # filter ordianl numbers
+    if re.match(r"^\d+\.", tgt) and not re.match(r"^\d+\.", src):
+        tgt = re.sub(r"\d+\.", "", tgt).strip()
+
+    if re.match(r"^\d+\.\s?\d+\.", tgt) and re.match(r"^\d+\.", src) and not re.match(r"^\d+\.\s?\d+\.", src):
+        tgt = re.sub(r"\d+\.\s?(\d+\.)", r"\1", tgt).strip()
+
+    return tgt
+
+
 async def _chatgpt_translate(
     origin: List[str],
     target: List[str],
@@ -76,7 +90,7 @@ async def _chatgpt_translate(
     langcodes.get(src_lang).display_name()
     tgt_lang_name = langcodes.get(tgt_lang).display_name()
 
-    def chunk() -> Iterable[Tuple[List[str], List[str]]]:
+    def chunk() -> Iterable[Tuple[List[str], List[str], str, str]]:
         source_chunk = []
         target_chunk = []
 
@@ -103,7 +117,7 @@ async def _chatgpt_translate(
     chunked = list(chunk())
     for i, (src, tgt, example_source, example_target) in enumerate(chunked):
         query = ""
-        for s, t in zip(src, tgt):
+        for s, _ in zip(src, tgt):
             # replace all blank with space
             query += s + "\n"
 
@@ -167,8 +181,7 @@ async def _chatgpt_translate(
 
     # filter ordianl numbers
     for i in range(len(fixed)):
-        if re.match(r"\d+\.", fixed[i]) and not re.match(r"\d+\.", origin[i]):
-            fixed[i] = re.sub(r"\d+\.", "", fixed[i]).strip()
+        fixed[i] = _fix_ordianl_numbers(origin[i], fixed[i])
 
     return fixed
 
@@ -176,7 +189,9 @@ async def _chatgpt_translate(
 TRANSLATION_FAILURE = "<|Openai 翻译失败|>"
 
 
-async def batch_translate_texts(texts: List[str], source_language_code: str, target_language_code: str) -> List[str]:
+async def batch_translate_texts(
+    texts: List[str], source_language_code: str, target_language_code: str, tm: Optional[TranslationMemory] = None
+) -> List[str]:
     mock_target = [TRANSLATION_FAILURE] * len(texts)
     translations = mock_target
 
@@ -185,7 +200,10 @@ async def batch_translate_texts(texts: List[str], source_language_code: str, tar
     searched_targets = []
 
     for i, text in enumerate(texts):
-        source, target = search_tm(text, source_language_code, target_language_code)
+        if tm is None:
+            source, target = "", ""
+        else:
+            source, target = tm.search_tm(text, source_language_code, target_language_code)
         searched_srouces.append(source)
         searched_targets.append(target)
         if source == text:
@@ -223,6 +241,17 @@ async def batch_translate_texts(texts: List[str], source_language_code: str, tar
     return translations
 
 
-async def translate_text(text, source_language_code, target_language_code):
-    translatons = await batch_translate_texts([text], source_language_code, target_language_code)
-    return translatons[0]
+async def translate_text(text, *args, **kwargs):
+    texts = re.split(r"(\n+)", text)
+    input_texts = [text for text in texts if text.strip()]
+
+    translatons = await batch_translate_texts(input_texts, *args, **kwargs)
+
+    output_texts = []
+    for text in texts:
+        if text.strip():
+            output_texts.append(translatons.pop(0))
+        else:
+            output_texts.append(text)
+
+    return "".join(output_texts)

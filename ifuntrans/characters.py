@@ -1,9 +1,18 @@
 import re
 
 import langcodes
+import regex
 
 
 def default_need_translate(text):
+    if not text.strip():
+        return False
+
+    if re.match(r"\{\$[a-zA-Z0-9_]*\}$", text):
+        return False
+
+    if regex.match(r"^[^\p{L}]+$", text):
+        return False
     return bool(text)
 
 
@@ -11,8 +20,8 @@ def need_translate_zh(text):
     if not default_need_translate(text):
         return False
     # if contains no Chinese characters, return False
-    if not re.search(r"[\u4e00-\u9fff]", text):
-        return False
+    # if not re.search(r"[\u4e00-\u9fff]", text):
+    #     return False
     return True
 
 
@@ -26,7 +35,7 @@ def need_translate_en(text):
 
 
 MAPPING = {
-    # "zh": need_translate_zh,
+    "zh": need_translate_zh,
     "en": need_translate_en,
 }
 

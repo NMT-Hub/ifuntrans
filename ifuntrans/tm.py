@@ -1,7 +1,6 @@
 """Translation Memory"""
 import pathlib
-from functools import cache
-from typing import Tuple
+from typing import List, Optional, Tuple
 
 import langcodes
 import pandas
@@ -11,72 +10,72 @@ from whoosh.qparser import OrGroup, QueryParser
 
 from ifuntrans.tokenizer import detokenize, tokenize
 
-
-@cache
-def get_index_path():
-    # return (pathlib.Path(__file__).parent.parent / ".index").resolve().as_posix()
-    return ":memory:"
+DEFAULT_TM_PATH = (pathlib.Path(__file__).parent.parent / "assets" / "tm.xlsx").resolve().as_posix()
 
 
-@cache
-def get_tm_path():
-    return (pathlib.Path(__file__).parent.parent / "assets" / "tm.xlsx").resolve().as_posix()
+class TranslationMemory(object):
+    @property
+    def index_path(self):
+        # return (pathlib.Path(__file__).parent.parent / ".index").resolve().as_posix()
+        return ":memory:"
 
+    def __init__(self, langs: List[str], tm_path: Optional[str] = None):
+        self.tm_path = tm_path
+        self.langs = langs
 
-def init_tm_indexing():
-    global IX
-    global LANGS
-    tm_df = pandas.read_excel(get_tm_path())
-
-    # skip first two rows
-    tm_df = tm_df.iloc[1:]
-
-    langs = tm_df.columns[1:].tolist()
-    columns = {lang: TEXT(stored=True) for lang in langs}
-    schema = Schema(
-        STR_ID=ID(stored=True),
-        **columns,
-    )
-
-    st = RamStorage()
-    IX = st.create_index(
-        schema,
-    )
-
-    writer = IX.writer()
-    for _, row in tm_df.iterrows():
-        docs = {}
-        for lang in langs:
-            string = str(row[lang])
-            docs[lang] = tokenize(string)
-
-        # tokenized data
-        writer.add_document(
-            STR_ID=str(row.iloc[0]),
-            **docs,
+        columns = {lang: TEXT(stored=True) for lang in langs}
+        schema = Schema(
+            STR_ID=ID(stored=True),
+            **columns,
         )
-    writer.commit()
-    LANGS = langs
+
+        st = RamStorage()
+        self.ix = st.create_index(
+            schema,
+        )
+
+        if not self.tm_path:
+            return
+
+        tm_df = (
+            pandas.read_excel(self.tm_path, engine="openpyxl")
+            .fillna("")
+            .astype(str)
+            .drop_duplicates()
+            .applymap(str.lower)
+        )
+        columns = tm_df.columns.tolist()
 
 
-def search_tm(text: str, source_lang: str, target_lang: str, limit=1) -> Tuple[str, str]:
-    if source_lang not in LANGS:
-        source_lang = langcodes.closest_supported_match(source_lang, LANGS)
-    if target_lang not in LANGS:
-        target_lang = langcodes.closest_supported_match(target_lang, LANGS)
+        writer = self.ix.writer()
+        for _, row in tm_df.iterrows():
+            docs = {}
+            for lang in langs:
+                string = row[lang]
+                docs[lang] = tokenize(string)
 
-    if not source_lang or not target_lang:
-        return "", ""
+            # tokenized data
+            writer.add_document(
+                STR_ID=str(row.iloc[0]),
+                **docs,
+            )
+        writer.commit()
 
-    with IX.searcher() as searcher:
-        tokens = tokenize(text)
-        query = QueryParser(source_lang, IX.schema, group=OrGroup).parse(tokens)
-        results = searcher.search(query, limit=limit)
-        if len(results) == 0:
+    def search_tm(self, text: str, source_lang: str, target_lang: str, limit=1) -> Tuple[str, str]:
+        if source_lang not in self.langs:
+            source_lang = langcodes.closest_supported_match(source_lang, self.langs)
+        if target_lang not in self.langs:
+            target_lang = langcodes.closest_supported_match(target_lang, self.langs)
+
+        if not source_lang or not target_lang:
             return "", ""
-        searched_source = detokenize(results[0][source_lang])
-        searched_target = detokenize(results[0][target_lang])
-        return searched_source, searched_target
 
-
-init_tm_indexing()
+        with self.ix.searcher() as searcher:
+            tokens = tokenize(text)
+            query = QueryParser(source_lang, self.ix.schema, group=OrGroup).parse(tokens)
+            results = searcher.search(query, limit=limit)
+            if len(results) == 0:
+                return "", ""
+            searched_source = detokenize(results[0][source_lang])
+            searched_target = detokenize(results[0][target_lang])
+            return searched_source, searched_target

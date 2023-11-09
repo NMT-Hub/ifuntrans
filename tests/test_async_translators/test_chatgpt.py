@@ -1,6 +1,6 @@
 import pytest
 
-from ifuntrans.async_translators.chatgpt import batch_translate_texts, translate_text
+from ifuntrans.async_translators.chatgpt import _fix_ordianl_numbers, batch_translate_texts, translate_text
 
 
 @pytest.mark.asyncio
@@ -18,3 +18,17 @@ async def test_batch_translate_texts():
 
     for r in result:
         assert "测试" in r
+
+
+@pytest.mark.parametrize(
+    "src, tgt, expected",
+    [
+        ("1. Hi, how are you!", "6. 1. 你好！", "1. 你好！"),
+        ("1. Hi, how are you!", "6.1. 你好！", "1. 你好！"),
+        ("1. Hi, how are you!", "1. 你好！", "1. 你好！"),
+        ("Hi, how are you!", "1. 你好！", "你好！"),
+    ],
+)
+def test_fix_ordianl_numbers(src: str, tgt: str, expected: str):
+    result = _fix_ordianl_numbers(src, tgt)
+    assert result == expected

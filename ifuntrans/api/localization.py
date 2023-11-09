@@ -1,7 +1,7 @@
 import re
 import tempfile
 from functools import partial
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 import httpx
 import langcodes
@@ -10,6 +10,7 @@ import pandas as pd
 
 from ifuntrans.lang_detection import single_detection
 from ifuntrans.pe import post_edit
+from ifuntrans.tm import TranslationMemory
 from ifuntrans.translate import translate
 from ifuntrans.utils import IFUN_CALLBACK_URL, S3_DEFAULT_BUCKET, S3Client, get_s3_key_from_id
 
@@ -50,7 +51,12 @@ def normalize_case(text: str) -> str:
 
 
 async def translate_excel(
-    file_path: str, saved_path: str, to_langs: str, source_column: int = 1, sheet_name: Union[int, str] = 0
+    file_path: str,
+    saved_path: str,
+    to_langs: str,
+    source_column: int = 1,
+    sheet_name: Union[int, str] = 0,
+    tm_file: Optional[str] = None,
 ):
     df, from_lang = await read_excel(file_path, source_column, sheet_name)
     source = (
@@ -63,6 +69,8 @@ async def translate_excel(
     )
     to_langs_list = to_langs.split(",")
 
+    tm = TranslationMemory(langs=to_langs_list, tm_path=tm_file)
+
     lang2translations = {}
     for lang in to_langs_list:
         language_name = langcodes.get(lang).language_name()
@@ -73,7 +81,7 @@ async def translate_excel(
         if language_name in df.columns:
             translations = df[language_name].tolist()
         else:
-            translations = await translate(source, from_lang, lang)
+            translations = await translate(source, from_lang, lang, tm=tm)
         lang2translations[language_name] = await post_edit(source, translations, from_lang, lang)
 
     # save to excel

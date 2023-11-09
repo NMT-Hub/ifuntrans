@@ -1,5 +1,6 @@
 import functools
 import os
+import re
 from typing import List
 
 import httpx
@@ -47,5 +48,15 @@ async def batch_translate_texts(texts: List[str], source_language_code: str, tar
 
 
 async def translate_text(text, source_language_code, target_language_code):
-    translatons = await batch_translate_texts([text], source_language_code, target_language_code)
-    return translatons[0]
+    texts = re.split(r"(\n+)", text)
+    input_texts = [text for text in texts if text.strip()]
+    translatons = await batch_translate_texts(input_texts, source_language_code, target_language_code)
+
+    output_texts = []
+    for text in texts:
+        if text.strip():
+            output_texts.append(translatons.pop(0))
+        else:
+            output_texts.append(text)
+
+    return "".join(output_texts)

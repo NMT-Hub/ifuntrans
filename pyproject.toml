@@ -25,6 +25,8 @@ more-itertools = "^10.1.0"
 whoosh = "^2.7.4"
 numpy = "^1.26.0"
 fastapi-limiter = "^0.1.5"
+openpyxl = "^3.1.2"
+regex = "^2023.10.3"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.0"

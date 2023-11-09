@@ -52,29 +52,29 @@ def assert_same_tags(html1, html2):
 @pytest.mark.parametrize(
     "html_text, source_lang, target_lang",
     [
-        #         (
-        #             """
-        #         <div>&nbsp;</div>
-        # <div>&nbsp;</div>
-        # <div>这是一封测试邮件</div>
-        # <div>&nbsp;</div>
-        # <div>&nbsp;</div>
-        # <div>这是一封测试邮件秒 🏧 🚮 🚰 ♿ <img src="https://mail-test-1308485183.cos.accelerate.myqcloud.com/system/system-test/2023-08-15/cGhwdGVzdDRAZGluZ2Nsb3VkdGVjaC5jb20=/files/1692089309860_wdcuqz.png" alt="">🚹 🚺 🚻 🚼 🚾 🛂 🛃 🛄 🛅 ⚠&nbsp;</div>
-        # <div>&nbsp;</div>
-        # <div>&nbsp;</div>
-        # <div>&nbsp;</div>
-        # <div id="signature">
-        # <p>&nbsp;</p>
-        # </div>
-        # """,
-        #             "zh",
-        #             "en",
-        #         ),
-        #         (open(os.path.join(os.path.dirname(__file__), "assets/page.html")).read(), "zh", "en"),
-        # (open(os.path.join(os.path.dirname(__file__), "assets/page2.html")).read(), "en", "zh-CN"),
+        (
+            """
+        <div>&nbsp;</div>
+<div>&nbsp;</div>
+<div>这是一封测试邮件</div>
+<div>&nbsp;</div>
+<div>&nbsp;</div>
+<div>这是一封测试邮件秒 🏧 🚮 🚰 ♿ <img src="https://mail-test-1308485183.cos.accelerate.myqcloud.com/system/system-test/2023-08-15/cGhwdGVzdDRAZGluZ2Nsb3VkdGVjaC5jb20=/files/1692089309860_wdcuqz.png" alt="">🚹 🚺 🚻 🚼 🚾 🛂 🛃 🛄 🛅 ⚠&nbsp;</div>
+<div>&nbsp;</div>
+<div>&nbsp;</div>
+<div>&nbsp;</div>
+<div id="signature">
+<p>&nbsp;</p>
+</div>
+""",
+            "zh",
+            "en",
+        ),
+        (open(os.path.join(os.path.dirname(__file__), "assets/page.html")).read(), "zh", "en"),
+        (open(os.path.join(os.path.dirname(__file__), "assets/page2.html")).read(), "en", "zh-CN"),
         (open(os.path.join(os.path.dirname(__file__), "assets/page3.html")).read(), "zh", "en"),
-        # ("你好", "zh", "en"),
-        # ("<p>你就像那一把火，熊熊火焰燃烧了我</p>", "zh", "en"),
+        ("你好", "zh", "en"),
+        ("<p>你就像那一把火，熊熊火焰燃烧了我</p>", "zh", "en"),
     ],
 )
 def test_translate_html(client, html_text, source_lang, target_lang):
