@@ -1,6 +1,11 @@
+import os
+
 import fastapi
+import redis.asyncio as redis
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
+from fastapi_limiter import FastAPILimiter
+from fastapi_limiter.depends import RateLimiter
 from pydantic import BaseModel
 
 from ifuntrans.api.constants import LANG_EN_TO_CODE
@@ -58,6 +63,7 @@ def get_lang_codes_en():
     """get all supported language codes"""
     return LANG_EN_TO_CODE
 
+
 def get_lang_codes_zh():
     """get all supported language codes"""
     return LANG_EN_TO_CODE
@@ -76,16 +82,28 @@ def create_app():
 
     import ifuntrans.api.translate as translate
 
+    @app.on_event("startup")
+    async def startup():
+        """startup event"""
+        redis_host = os.getenv("REDIS_HOST", "localhost")
+        redis_client = redis.from_url("redis://{}:6379".format(redis_host), encoding="utf8", decode_responses=True)
+        await FastAPILimiter.init(redis_client)
+
     app.exception_handler(Exception)(custom_exception_handler)
     app.middleware("http")(redirect_trailing_slash)
     app.get("/", summary="SwaggerUI (当前页面)")(home)
     app.get("/lang_codes_en", summary="获取所有支持的语言代码（英语版本）")(get_lang_codes_en)
     app.get("/lang_codes_zh", summary="获取所有支持的语言代码（中文版本）")(get_lang_codes_zh)
+
+    translate_func = translate.translate
     app.post(
         "/translate",
         summary="翻译接口, 传递引擎名称，翻译源语言，翻译目标语言，翻译内容，返回翻译结果",
         responses={200: translate.TranslationResponse.get_example()},
-        dependencies=[fastapi.Depends(logging_request_data)],
-    )(translate.translate)
+        dependencies=[
+            fastapi.Depends(logging_request_data),
+            fastapi.Depends(RateLimiter(times=5 * 60, seconds=60 * 60)),
+        ],
+    )(translate_func)
 
     return app

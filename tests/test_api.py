@@ -18,7 +18,8 @@ test_file = os.path.join(os.path.dirname(__file__), "assets/small.xlsx")
 @pytest.fixture(scope="module", autouse=True)
 def client():
     app = create_app()
-    yield TestClient(app)
+    with TestClient(app) as client:
+        yield client
 
 
 @pytest.mark.parametrize("engine", ["google", "chatgpt"])
@@ -51,25 +52,25 @@ def assert_same_tags(html1, html2):
 @pytest.mark.parametrize(
     "html_text, source_lang, target_lang",
     [
-#         (
-#             """
-#         <div>&nbsp;</div>
-# <div>&nbsp;</div>
-# <div>这是一封测试邮件</div>
-# <div>&nbsp;</div>
-# <div>&nbsp;</div>
-# <div>这是一封测试邮件秒 🏧 🚮 🚰 ♿ <img src="https://mail-test-1308485183.cos.accelerate.myqcloud.com/system/system-test/2023-08-15/cGhwdGVzdDRAZGluZ2Nsb3VkdGVjaC5jb20=/files/1692089309860_wdcuqz.png" alt="">🚹 🚺 🚻 🚼 🚾 🛂 🛃 🛄 🛅 ⚠&nbsp;</div>
-# <div>&nbsp;</div>
-# <div>&nbsp;</div>
-# <div>&nbsp;</div>
-# <div id="signature">
-# <p>&nbsp;</p>
-# </div>
-# """,
-#             "zh",
-#             "en",
-#         ),
-#         (open(os.path.join(os.path.dirname(__file__), "assets/page.html")).read(), "zh", "en"),
+        #         (
+        #             """
+        #         <div>&nbsp;</div>
+        # <div>&nbsp;</div>
+        # <div>这是一封测试邮件</div>
+        # <div>&nbsp;</div>
+        # <div>&nbsp;</div>
+        # <div>这是一封测试邮件秒 🏧 🚮 🚰 ♿ <img src="https://mail-test-1308485183.cos.accelerate.myqcloud.com/system/system-test/2023-08-15/cGhwdGVzdDRAZGluZ2Nsb3VkdGVjaC5jb20=/files/1692089309860_wdcuqz.png" alt="">🚹 🚺 🚻 🚼 🚾 🛂 🛃 🛄 🛅 ⚠&nbsp;</div>
+        # <div>&nbsp;</div>
+        # <div>&nbsp;</div>
+        # <div>&nbsp;</div>
+        # <div id="signature">
+        # <p>&nbsp;</p>
+        # </div>
+        # """,
+        #             "zh",
+        #             "en",
+        #         ),
+        #         (open(os.path.join(os.path.dirname(__file__), "assets/page.html")).read(), "zh", "en"),
         # (open(os.path.join(os.path.dirname(__file__), "assets/page2.html")).read(), "en", "zh-CN"),
         (open(os.path.join(os.path.dirname(__file__), "assets/page3.html")).read(), "zh", "en"),
         # ("你好", "zh", "en"),
