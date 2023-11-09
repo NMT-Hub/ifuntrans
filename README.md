@@ -1,6 +1,10 @@
 # IFUN 翻译项目
 
 ## 快速开始
+启动redis（用于请求缓存，以及限制请求频率）
+```
+docker run --network="host" --name ifuntrans-redis -d redis:6.2.14
+```
 安装依赖
 ```
 poetry install
@@ -18,13 +22,13 @@ poetry run python main.py /path/to/input.xlsx --languages en,ru --source-column 
 ```
 docker build -t ifuntrans .
 ```
-启动测试环境服务
+启动测试环境服务（其中REDIS_HOST改成redis的访问地址）
 ```
-docker run --env-file .env -p 8188:8888 --name ifuntrans-test -d ifuntrans:latest
+docker run --env-file .env -e REDIS_HOST=172.26.0.3 -p 8188:8888 --name ifuntrans-test -d ifuntrans:latest
 ```
-启动正式环境服务
+启动正式环境服务（其中REDIS_HOST改成redis的访问地址）
 ```
-docker run --env-file .env_formal 8189:8888 --name ifuntrans -d ifuntrans:pord
+docker run --env-file .env_formal -e REDIS_HOST=172.26.0.3 8189:8888 --name ifuntrans -d ifuntrans:pord
 ```
 
 ## 其他文档
