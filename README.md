@@ -28,7 +28,7 @@ docker run --env-file .env -e REDIS_HOST=172.26.0.3 -p 8188:8888 --name ifuntran
 ```
 启动正式环境服务（其中REDIS_HOST改成redis的访问地址）
 ```
-docker run --env-file .env_formal -e REDIS_HOST=172.26.0.3 8189:8888 --name ifuntrans -d ifuntrans:pord
+docker run --env-file .env_formal -e REDIS_HOST=172.26.0.3 -p 8189:8888 --name ifuntrans -d ifuntrans:prod
 ```
 
 ## 其他文档
