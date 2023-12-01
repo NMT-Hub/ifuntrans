@@ -1,12 +1,12 @@
 import asyncio
 import os
 import re
-import warnings
 from itertools import chain
 from typing import Dict, Iterable, List, Optional, Tuple
 
 import langcodes
 import openai
+from loguru import logger
 from more_itertools import windowed
 
 from ifuntrans.async_translators.google import batch_translate_texts as google_batch_translate_texts
@@ -58,7 +58,7 @@ async def create_chat_completion(order: int, messages: List[Dict[str, str]]):
         )
         response = chat_completion_resp.choices[0].message.content
     except Exception as e:
-        print(e)
+        logger.warning(f"ChatGPT failed: {e}")
         response = ""
     return order, response
 
@@ -143,7 +143,7 @@ async def _chatgpt_translate(
         tasks.append(chat_completion_resp)
 
     fixed = []
-    print(f"ChatGPT Translating {len(tasks)} chunks")
+    logger.debug(f"ChatGPT Translating {len(tasks)} chunks")
 
     # in case that the number of tasks is too large, we split them into windows
     for window in windowed(tasks, 10, step=10):
@@ -152,7 +152,7 @@ async def _chatgpt_translate(
         for future in asyncio.as_completed(window):
             order, response = await future
 
-            print(f"ChatGPT finish {len(fixed) + 1}/{len(tasks)} chunks")
+            logger.debug(f"ChatGPT finish {len(fixed) + 1}/{len(tasks)} chunks")
             answer = response.strip().split("\n")
 
             src, tgt, _, _ = chunked[order]
@@ -167,11 +167,11 @@ async def _chatgpt_translate(
 
             translations = [x.strip() for x in translations if x.strip()]
             if len(translations) != len(tgt) or cur != len(answer):
-                warnings.warn(
-                    f"ChatGPT Doc Translate failed. Please check the following sentences:\n"
-                    f"Source: {src}\n"
-                    f"Target: {tgt}\n"
-                    f"Answer: {translations}\n"
+                logger.warning(
+                    f"ChatGPT Doc Translate failed. Please check the following sentences: "
+                    f"Source: {src} "
+                    f"Target: {tgt} "
+                    f"Answer: {translations} "
                 )
                 translations = tgt
             fixed.append((order, translations))
@@ -234,6 +234,7 @@ async def batch_translate_texts(
     if TRANSLATION_FAILURE in translations:
         failure_indices = [i for i, x in enumerate(translations) if x == TRANSLATION_FAILURE]
         cur_texts = [texts[i] for i in failure_indices]
+        logger.warning(f"ChatGPT failed. Use Google Translate instead. {len(cur_texts)} sentences. {cur_texts}")
         cur_translations = await google_batch_translate_texts(cur_texts, source_language_code, target_language_code)
         for i, x in zip(failure_indices, cur_translations):
             translations[i] = x

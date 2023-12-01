@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from fastapi_limiter import FastAPILimiter
 from fastapi_limiter.depends import RateLimiter
+from loguru import logger
 from pydantic import BaseModel
 
 from ifuntrans.api.constants import LANG_EN_TO_CODE
@@ -34,7 +35,7 @@ class IfunTransModel(BaseModel):
 
 async def logging_request_data(request: fastapi.Request):
     body = await request.body()
-    print(f"request body: {body}")
+    logger.info(f"request body: {body}")
 
 
 async def redirect_trailing_slash(request: fastapi.Request, call_next):
