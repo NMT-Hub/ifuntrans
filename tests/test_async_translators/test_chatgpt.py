@@ -1,6 +1,14 @@
+from typing import List
+
+import langcodes
 import pytest
 
-from ifuntrans.async_translators.chatgpt import _fix_ordianl_numbers, batch_translate_texts, translate_text
+from ifuntrans.async_translators.chatgpt import (
+    _fix_ordianl_numbers,
+    batch_translate_texts,
+    normalize_language_code_as_iso639,
+    translate_text,
+)
 
 
 @pytest.mark.asyncio
@@ -32,3 +40,65 @@ async def test_batch_translate_texts():
 def test_fix_ordianl_numbers(src: str, tgt: str, expected: str):
     result = _fix_ordianl_numbers(src, tgt)
     assert result == expected
+
+
+@pytest.mark.parametrize(
+    "lang, expected",
+    [
+        (["中文", "巴西葡萄牙语", "英语"], ["zh", "pt-BR", "en"]),
+        (
+            [
+                "中文",
+                "英文",
+                "中文繁體",
+                "印尼语",
+                "泰语",
+                "越南语",
+                "葡萄牙语",
+                "Russian",
+                "韩语",
+                "Turkish",
+                "法语",
+                "德语",
+                "西班牙语",
+                "意大利语",
+                "日语",
+                "阿拉伯语",
+                "丹麦语",
+                "挪威语",
+                "瑞典语",
+                "芬兰语",
+                "荷兰语",
+            ],
+            [
+                "zh",
+                "en",
+                "zh-Hant",
+                "id",
+                "th",
+                "vi",
+                "pt",
+                "ru",
+                "ko",
+                "tr",
+                "fr",
+                "de",
+                "es",
+                "it",
+                "ja",
+                "ar",
+                "da",
+                "no",
+                "sv",
+                "fi",
+                "nl",
+            ],
+        ),
+    ],
+)
+@pytest.mark.asyncio
+async def test_normalize_language_code_as_iso639(lang: List[str], expected: List[str]):
+    iso_codes = await normalize_language_code_as_iso639(lang)
+
+    for code, expected_code in zip(iso_codes, expected):
+        assert langcodes.closest_supported_match(code, expected) == expected_code

@@ -255,3 +255,22 @@ async def translate_text(text, *args, **kwargs):
             output_texts.append(text)
 
     return "".join(output_texts)
+
+
+async def normalize_language_code_as_iso639(langs: List[str]) -> List[str]:
+    system_prompt = """
+    Please normalize the language code to ISO 639 format.
+    """
+
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": "\n".join(["cn", "英文", "tw", "印尼语"])},
+        {"role": "assistant", "content": "\n".join(["zh", "en", "zh-Hant", "id"])},
+        {"role": "user", "content": "\n".join(langs)},
+    ]
+
+    chat_completion_resp = await openai.ChatCompletion.acreate(
+        model="gpt-4", messages=messages, timeout=30, deployment_id=DEPLOYMENT_ID, temperature=0.0
+    )
+    response = chat_completion_resp.choices[0].message.content
+    return response.strip().split("\n")
