@@ -46,7 +46,6 @@ class TranslationMemory(object):
         )
         columns = tm_df.columns.tolist()
 
-
         writer = self.ix.writer()
         for _, row in tm_df.iterrows():
             docs = {}
@@ -60,6 +59,17 @@ class TranslationMemory(object):
                 **docs,
             )
         writer.commit()
+
+    def add(self, str_id: str, source: str, target: str, source_lang: str, target_lang: str):
+        source = source.lower()
+        target = target.lower()
+
+        # if str_id in ix, update, else add
+        with self.ix.writer() as writer:
+            writer.update_document(
+                STR_ID=str_id,
+                **{source_lang: tokenize(source), target_lang: tokenize(target)},
+            )
 
     def search_tm(self, text: str, source_lang: str, target_lang: str, limit=1) -> Tuple[str, str]:
         if source_lang not in self.langs:

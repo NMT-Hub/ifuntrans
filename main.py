@@ -2,10 +2,13 @@ import argparse
 import asyncio
 import tempfile
 import warnings
+from typing import List
 
+import langcodes
 import openpyxl
+import pandas as pd
 
-import ifuntrans.api.localization as localization
+import ifuntrans.async_translators.chatgpt as chatgpt
 
 
 def get_sheet_names(file_path):
@@ -28,58 +31,97 @@ async def main():
     parser = argparse.ArgumentParser(description="Translate excel file")
     parser.add_argument("file", help="The excel file to translate")
     parser.add_argument("output", help="The output file")
-    parser.add_argument(
-        "--languages", help="The languages to translate to", default="en,zh-TW,id,vi,th,pt-BR,ja,ko,ar,tr"
-    )
-    parser.add_argument("--source-column", help="The source column", default=1, type=int)
-    parser.add_argument("--sheet-names", nargs="*", help="The sheet names", default=None, type=str)
     parser.add_argument("-tm", "--translate-memory-file", help="The translate memory file", default=None, type=str)
 
     args = parser.parse_args()
 
-    all_sheet_names = get_sheet_names(args.file)
-    if not args.sheet_names:
-        sheet_names = all_sheet_names
-    else:
-        sheet_names = args.sheet_names
+    sheet_names = get_sheet_names(args.file)
 
     with tempfile.TemporaryDirectory() as tmpdir:
+        sheet_2_dataframes = {}
         for sheet_name in sheet_names:
-            temp_file = f"{tmpdir}/{sheet_name}.xlsx"
-            if sheet_name not in all_sheet_names:
-                warnings.warn(f"Sheet name {sheet_name} not found in excel file {args.file}")
+            dataframe = pd.read_excel(args.file, sheet_name=sheet_name)
+            columns = dataframe.columns
+
+            # normalize the language code
+            iso_codes = await chatgpt.normalize_language_code_as_iso639(columns)
+            columns_2_langcodes = {}
+            for column, code in zip(columns, iso_codes):
+                if code == "und":
+                    continue
+                columns_2_langcodes[column] = code
+            langcodes_2_columns = {v: k for k, v in columns_2_langcodes.items()}
+
+            # find the most common language code. more specifically, "zh" and "en"
+            # zh and en will translate to each other
+            # the others will be translated from these two languages
+            try:
+                zh_lang_code = langcodes.closest_supported_match("zh", langcodes_2_columns.keys())
+                zh_column = langcodes_2_columns[zh_lang_code]
+            except KeyError:
+                warnings.warn(f"No Chinese column found in sheet {sheet_name}. Skip this sheet")
                 continue
-            await localization.translate_excel(
-                args.file,
-                temp_file,
-                args.languages,
-                source_column=args.source_column,
-                sheet_name=sheet_name,
-                tm_file=args.translate_memory_file,
+
+            try:
+                en_lang_code = langcodes.closest_supported_match("en", langcodes_2_columns.keys())
+                en_column = langcodes_2_columns[en_lang_code]
+            except KeyError:
+                warnings.warn(f"No English column found in sheet {sheet_name}. Skip this sheet")
+                continue
+            # select rows that zh_column is empty and en_column is not empty
+            # these rows will be translated from English to Chinese
+            zh_empty_rows = dataframe[dataframe[zh_column].isnull() & dataframe[en_column].notnull()]
+            zh_empty_rows_en_translation: List[str] = await chatgpt.batch_translate_texts(
+                zh_empty_rows[en_column].tolist(),
+                source_language_code="en",
+                target_language_code="zh",
+                tm=None,
             )
+            dataframe.loc[zh_empty_rows.index, zh_column] = zh_empty_rows_en_translation
 
-        workbook = openpyxl.load_workbook(args.file)
-        for sheet_name in sheet_names:
-            if sheet_name not in all_sheet_names:
-                continue
-            sheet = workbook[sheet_name]
-            temp_file = f"{tmpdir}/{sheet_name}.xlsx"
-            temp_workbook = openpyxl.load_workbook(temp_file)
-            temp_sheet = temp_workbook.active
+            # slecet rows that en_column is empty and zh_column is not empty
+            # these rows will be translated from Chinese to English
+            dataframe[dataframe[en_column].isnull() & dataframe[zh_column].notnull()]
+            en_empty_rows = dataframe[dataframe[en_column].isnull() & dataframe[zh_column].notnull()]
+            en_empty_rows_zh_translation: List[str] = await chatgpt.batch_translate_texts(
+                en_empty_rows[zh_column].tolist(),
+                source_language_code="zh",
+                target_language_code="en",
+                tm=None,
+            )
+            dataframe.loc[en_empty_rows.index, en_column] = en_empty_rows_zh_translation
 
-            # copy the translated content to the original workbook, and keep the formatting
-            # only copy the translated column
-            for i in range(1, sheet.max_row + 1):
-                format_template_cell = sheet.cell(row=i, column=sheet.max_column)
-                for j in range(sheet.max_column + 1, temp_sheet.max_column + 1):
-                    source_cell = temp_sheet.cell(row=i, column=j)
-                    target_cell = sheet.cell(row=i, column=j)
-                    target_cell.value = source_cell.value
-                    copy_format(format_template_cell, target_cell)
+            for column in columns_2_langcodes.keys():
+                if column in [zh_column, en_column]:
+                    continue
+                lang_code = columns_2_langcodes[column]
 
-            temp_workbook.close()
+                if langcodes.get(lang_code).language in ["zh", "ja", "ko"]:
+                    # for cjk languages, we translate from Chinese
+                    empty_rows = dataframe[dataframe[column].isnull()]
+                    empty_rows_zh_translation: List[str] = await chatgpt.batch_translate_texts(
+                        empty_rows[zh_column].tolist(),
+                        source_language_code="zh",
+                        target_language_code=lang_code,
+                        tm=None,
+                    )
+                    dataframe.loc[empty_rows.index, column] = empty_rows_zh_translation
+                else:
+                    # for other languages, we translate from English
+                    empty_rows = dataframe[dataframe[column].isnull()]
+                    empty_rows_en_translation: List[str] = await chatgpt.batch_translate_texts(
+                        empty_rows[en_column].tolist(),
+                        source_language_code="en",
+                        target_language_code=lang_code,
+                        tm=None,
+                    )
+                    dataframe.loc[empty_rows.index, column] = empty_rows_en_translation
 
-        workbook.save(args.output)
+            sheet_2_dataframes[sheet_name] = dataframe
+
+        with pd.ExcelWriter(args.output) as writer:
+            for sheet_name, dataframe in sheet_2_dataframes.items():
+                dataframe.to_excel(writer, sheet_name=sheet_name, index=False)
 
 
 if __name__ == "__main__":
