@@ -259,18 +259,38 @@ async def translate_text(text, *args, **kwargs):
 
 async def normalize_language_code_as_iso639(langs: List[str]) -> List[str]:
     system_prompt = """
-    Please normalize the language code to ISO 639 format.
+    Please normalize the language name to ISO 639-2 format. If the language name is not a valid ISO 639 language name, please use "not a valid ISO 639 language name" instead.
     """
 
     messages = [
         {"role": "system", "content": system_prompt},
-        {"role": "user", "content": "\n".join(["cn", "英文", "tw", "印尼语"])},
-        {"role": "assistant", "content": "\n".join(["zh", "en", "zh-Hant", "id"])},
-        {"role": "user", "content": "\n".join(langs)},
+        {"role": "user", "content": ", ".join(["STR_ID", "路径", "序号", "cn", "英文", "tw", "印尼语", "备注"])},
+        {
+            "role": "assistant",
+            "content": "\n".join(
+                [
+                    "STR_ID: not a valid ISO 639 language name",
+                    "路径: not a valid ISO 639 language name",
+                    "序号: not a valid ISO 639 language name",
+                    "cn: zh",
+                    "英文: en",
+                    "tw: zh-TW",
+                    "印尼语: id",
+                    "备注: not a valid ISO 639 language name",
+                ]
+            ),
+        },
+        {"role": "user", "content": ", ".join(langs)},
     ]
 
     chat_completion_resp = await openai.ChatCompletion.acreate(
         model="gpt-4", messages=messages, timeout=30, deployment_id=DEPLOYMENT_ID, temperature=0.0
     )
     response = chat_completion_resp.choices[0].message.content
-    return response.strip().split("\n")
+
+    iso_codes = [re.sub(".*: ", "", x) for x in response.strip().split("\n")]
+
+    iso_codes = [
+        y if y.isascii() and len(y) <= 8 and langcodes.get(y).is_valid() else "und" for _, y in zip(langs, iso_codes)
+    ]
+    return iso_codes
