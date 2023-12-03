@@ -47,6 +47,7 @@ async def main():
         dataframe = dataframe.apply(lambda x: x.str.strip())
         # manually replace "" with pd.NA
         dataframe.replace("", pd.NA, inplace=True)
+        dataframe.replace("nan", pd.NA, inplace=True)
         columns = dataframe.columns
 
         # normalize the language code

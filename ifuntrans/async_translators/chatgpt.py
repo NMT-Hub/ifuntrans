@@ -74,7 +74,7 @@ async def _chatgpt_translate(
     instructions="",
     max_length=MAX_LENGTH,
 ) -> List[str]:
-    langcodes.get(src_lang).display_name()
+    src_lang_name = langcodes.get(src_lang).display_name()
     tgt_lang_name = langcodes.get(tgt_lang).display_name()
 
     def chunk() -> Iterable[Tuple[List[str], List[str], str, str]]:
@@ -117,12 +117,12 @@ async def _chatgpt_translate(
             messages.append(
                 {
                     "role": "user",
-                    "content": "Source: \n" + "\n".join(example_source) + f"\n{tgt_lang_name} Translations: \n",
+                    "content": f"{src_lang_name} Source: \n" + "\n".join(example_source) + f"\n\n{tgt_lang_name} Translations: \n",
                 }
             )
             messages.append({"role": "assistant", "content": "\n".join(example_target)})
 
-        messages.append({"role": "user", "content": "Source: \n" + query + f"\n{tgt_lang_name} Translations: \n"})
+        messages.append({"role": "user", "content": f"{src_lang_name} Source: \n" + query + f"\n\n{tgt_lang_name} Translations: \n"})
         chat_completion_resp = create_chat_completion(
             order=i,
             messages=messages,
@@ -198,12 +198,12 @@ async def batch_translate_texts(
 
     max_length = MAX_LENGTH
     prev_failures_indices = []
-    while TRANSLATION_FAILURE in translations and max_length > 5:
+    while TRANSLATION_FAILURE in translations and max_length > 20:
         failure_indices = [i for i, x in enumerate(translations) if x == TRANSLATION_FAILURE]
-        logger.debug("Failure indices: " + str(failure_indices))
-        if failure_indices == prev_failures_indices:
-            max_length = max_length // 2
-            continue
+
+        # If prev_failures_indices is empty, it means that the first time to translate, don't need to log
+        if prev_failures_indices:
+            logger.debug(f"From {source_language_code} to {target_language_code}. Failed indices: {failure_indices}")
 
         prev_failures_indices = failure_indices
         cur_texts = [texts[i] for i in failure_indices]
