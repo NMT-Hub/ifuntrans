@@ -18,19 +18,6 @@ AZURE_OPENAI_API_KEY = os.environ["AZURE_OPENAI_API_KEY"]
 DEPLOYMENT_ID = os.environ["DEPLOYMENT_ID"]
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 
-# set the default language model used to execute guidance programs
-# guidance.llm = guidance.llms.OpenAI(
-#     # "gpt-3.5-turbo",
-#     # api_key=OPENAI_API_KEY,
-#     "gpt-4",
-#     api_key=AZURE_OPENAI_API_KEY,
-#     api_type="azure",
-#     api_base=AZURE_OPENAI_ENDPOINT,
-#     api_version="2023-05-15",
-#     deployment_id=DEPLOYMENT_ID,
-# )
-
-
 MAX_LENGTH = 500
 # openai.api_key = os.environ["OPENAI_API_KEY"]
 
