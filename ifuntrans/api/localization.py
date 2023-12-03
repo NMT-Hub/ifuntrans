@@ -9,7 +9,6 @@ import numpy as np
 import pandas as pd
 
 from ifuntrans.lang_detection import single_detection
-from ifuntrans.pe import post_edit
 from ifuntrans.tm import TranslationMemory
 from ifuntrans.translate import translate
 from ifuntrans.utils import IFUN_CALLBACK_URL, S3_DEFAULT_BUCKET, S3Client, get_s3_key_from_id
@@ -82,7 +81,6 @@ async def translate_excel(
             translations = df[language_name].tolist()
         else:
             translations = await translate(source, from_lang, lang, tm=tm)
-        lang2translations[language_name] = await post_edit(source, translations, from_lang, lang)
 
     # save to excel
     writer = pd.ExcelWriter(saved_path, engine="openpyxl")

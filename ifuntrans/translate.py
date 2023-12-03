@@ -1,6 +1,8 @@
 """
 Translate all in one.
 """
+import re
+from itertools import chain
 from typing import List
 
 import langcodes
@@ -8,6 +10,7 @@ from opencc import OpenCC
 
 from ifuntrans.async_translators.chatgpt import batch_translate_texts
 from ifuntrans.characters import get_need_translate_func
+from ifuntrans.pe import post_edit
 
 opencc_mapping = {
     "s2hk": OpenCC("s2hk.json"),
@@ -67,10 +70,15 @@ async def translate(texts: List[str], from_lang: str, to_lang: str, **kwargs) ->
     if from_lang_code.language == "zh" and to_lang_code.language == "zh":
         return [opencc_convert(text, from_lang_code, to_lang_code) for text in texts]
 
+    splited_texts = [re.split(r"([\n\r]+)", text) for text in texts]
+    splited_texts_len = [len(text) for text in splited_texts]
+    texts = list(chain.from_iterable(splited_texts))
+
     need_translate_func = get_need_translate_func(from_lang)
     need_translate_mask = [need_translate_func(text) for text in texts]
     need_translate_texts = [t for t, m in zip(texts, need_translate_mask) if m]
     translation = await batch_translate_texts(need_translate_texts, from_lang, to_lang, **kwargs)
+    translation = await post_edit(need_translate_texts, translation, from_lang, to_lang)
 
     result = []
     j = 0
@@ -81,4 +89,11 @@ async def translate(texts: List[str], from_lang: str, to_lang: str, **kwargs) ->
         else:
             result.append(texts[i])
 
-    return result
+    # merge the splited texts
+    final_result = []
+    cur = 0
+    for i in range(len(splited_texts)):
+        final_result.append("".join(result[cur : cur + splited_texts_len[i]]))
+        cur += splited_texts_len[i]
+
+    return final_result

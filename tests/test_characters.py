@@ -9,6 +9,7 @@ from ifuntrans import characters
         (r"你好", True),
         (r"！！。。", False),
         (r"{$thinkTips}", False),
+        ("\n\r", False),
     ],
 )
 def test_need_translate(text, expected):

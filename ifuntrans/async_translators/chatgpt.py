@@ -210,8 +210,15 @@ async def batch_translate_texts(
             translations[i] = target
 
     max_length = MAX_LENGTH
-    while TRANSLATION_FAILURE in translations and max_length > 50:
+    prev_failures_indices = []
+    while TRANSLATION_FAILURE in translations and max_length > 5:
         failure_indices = [i for i, x in enumerate(translations) if x == TRANSLATION_FAILURE]
+        logger.debug("Failure indices: " + str(failure_indices))
+        if failure_indices == prev_failures_indices:
+            max_length = max_length // 2
+            continue
+
+        prev_failures_indices = failure_indices
         cur_texts = [texts[i] for i in failure_indices]
         cur_target = [mock_target[i] for i in failure_indices]
         [searched_srouces[i] for i in failure_indices]
