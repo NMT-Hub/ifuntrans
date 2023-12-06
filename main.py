@@ -6,36 +6,23 @@ from typing import List
 import langcodes
 import openpyxl
 import pandas as pd
+from openpyxl.styles import Font
 
 from ifuntrans.async_translators.chatgpt import normalize_language_code_as_iso639
 from ifuntrans.translate import translate
-
-
-def get_sheet_names(file_path):
-    wb = openpyxl.load_workbook(file_path)
-    return wb.sheetnames
-
-
-def copy_format(source_cell, target_cell):
-    """Copy the formatting from the source cell to the target cell."""
-    if source_cell.has_style:
-        target_cell.font = source_cell.font.copy()
-        target_cell.border = source_cell.border.copy()
-        target_cell.fill = source_cell.fill.copy()
-        target_cell.number_format = source_cell.number_format
-        target_cell.protection = source_cell.protection.copy()
-        target_cell.alignment = source_cell.alignment.copy()
 
 
 async def main():
     parser = argparse.ArgumentParser(description="Translate excel file")
     parser.add_argument("file", help="The excel file to translate")
     parser.add_argument("output", help="The output file")
+    parser.add_argument("-l", "--language", nargs="+", help="The additional languages to translate to", default=[])
     parser.add_argument("-tm", "--translate-memory-file", help="The translate memory file", default=None, type=str)
 
     args = parser.parse_args()
 
-    sheet_names = get_sheet_names(args.file)
+    workbook = openpyxl.load_workbook(args.file)
+    sheet_names = workbook.sheetnames
 
     sheet_2_dataframes = {}
     for sheet_name in sheet_names:
@@ -126,9 +113,15 @@ async def main():
 
         sheet_2_dataframes[sheet_name] = dataframe
 
-    with pd.ExcelWriter(args.output) as writer:
-        for sheet_name, dataframe in sheet_2_dataframes.items():
-            dataframe.to_excel(writer, sheet_name=sheet_name, index=False)
+    for sheet_name, dataframe in sheet_2_dataframes.items():
+        ws = workbook[sheet_name]
+        # Update the localization workbook
+        for row in ws.iter_rows(min_row=1, max_col=ws.max_column, max_row=ws.max_row):
+            for cell in row:
+                if cell.value is None:
+                    cell.value = dataframe.loc[cell.row - 1, cell.column - 1]
+                    cell.font = Font(color="FF0000")
+    workbook.save(args.output)
 
 
 if __name__ == "__main__":

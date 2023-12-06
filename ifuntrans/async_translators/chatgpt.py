@@ -13,12 +13,16 @@ from ifuntrans.async_translators.google import batch_translate_texts as google_b
 from ifuntrans.tm import TranslationMemory
 from ifuntrans.tokenizer import tokenizer
 
-AZURE_OPENAI_ENDPOINT = os.environ["AZURE_OPENAI_ENDPOINT"]
-AZURE_OPENAI_API_KEY = os.environ["AZURE_OPENAI_API_KEY"]
-DEPLOYMENT_ID = os.environ["DEPLOYMENT_ID"]
-OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
+if os.environ.get("USE_GPT4", None):
+    AZURE_OPENAI_ENDPOINT = os.environ["AZURE_OPENAI_GPT4_ENDPOINT"]
+    AZURE_OPENAI_API_KEY = os.environ["AZURE_OPENAI_GPT4_API_KEY"]
+    DEPLOYMENT_ID = os.environ["DEPLOYMENT_ID_GPT4"]
+else:
+    AZURE_OPENAI_ENDPOINT = os.environ["AZURE_OPENAI_ENDPOINT"]
+    AZURE_OPENAI_API_KEY = os.environ["AZURE_OPENAI_API_KEY"]
+    DEPLOYMENT_ID = os.environ["DEPLOYMENT_ID"]
 
-MAX_LENGTH = 500
+# OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 # openai.api_key = os.environ["OPENAI_API_KEY"]
 
 openai.api_type = "azure"
@@ -26,6 +30,7 @@ openai.api_key = AZURE_OPENAI_API_KEY
 openai.api_base = AZURE_OPENAI_ENDPOINT
 openai.api_version = "2023-05-15"
 
+MAX_LENGTH = 500
 
 CHATGPT_DOC_TRANSLATE_PROMPT = """
 {instructions}
@@ -117,12 +122,16 @@ async def _chatgpt_translate(
             messages.append(
                 {
                     "role": "user",
-                    "content": f"{src_lang_name} Source: \n" + "\n".join(example_source) + f"\n\n{tgt_lang_name} Translations: \n",
+                    "content": f"{src_lang_name} Source: \n"
+                    + "\n".join(example_source)
+                    + f"\n\n{tgt_lang_name} Translations: \n",
                 }
             )
             messages.append({"role": "assistant", "content": "\n".join(example_target)})
 
-        messages.append({"role": "user", "content": f"{src_lang_name} Source: \n" + query + f"\n\n{tgt_lang_name} Translations: \n"})
+        messages.append(
+            {"role": "user", "content": f"{src_lang_name} Source: \n" + query + f"\n\n{tgt_lang_name} Translations: \n"}
+        )
         chat_completion_resp = create_chat_completion(
             order=i,
             messages=messages,
