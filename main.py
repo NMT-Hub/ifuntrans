@@ -15,11 +15,14 @@ from ifuntrans.translate import translate
 async def main():
     parser = argparse.ArgumentParser(description="Translate excel file")
     parser.add_argument("file", help="The excel file to translate")
-    parser.add_argument("output", help="The output file")
+    parser.add_argument("--output", help="The output file", default=None, type=str)
     parser.add_argument("-l", "--language", nargs="+", help="The additional languages to translate to", default=[])
     parser.add_argument("-tm", "--translate-memory-file", help="The translate memory file", default=None, type=str)
 
     args = parser.parse_args()
+
+    if args.output is None:
+        args.output = args.file
 
     workbook = openpyxl.load_workbook(args.file)
     sheet_names = workbook.sheetnames
@@ -115,11 +118,15 @@ async def main():
 
     for sheet_name, dataframe in sheet_2_dataframes.items():
         ws = workbook[sheet_name]
+        dataframe = sheet_2_dataframes[sheet_name]
         # Update the localization workbook
-        for row in ws.iter_rows(min_row=1, max_col=ws.max_column, max_row=ws.max_row):
+        for row in ws.iter_rows():
             for cell in row:
                 if cell.value is None:
-                    cell.value = dataframe.loc[cell.row - 1, cell.column - 1]
+                    try:
+                        cell.value = dataframe.iloc[cell.row - 2, cell.column - 1]
+                    except IndexError:
+                        continue
                     cell.font = Font(color="FF0000")
     workbook.save(args.output)
 

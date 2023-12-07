@@ -17,10 +17,12 @@ if os.environ.get("USE_GPT4", None):
     AZURE_OPENAI_ENDPOINT = os.environ["AZURE_OPENAI_GPT4_ENDPOINT"]
     AZURE_OPENAI_API_KEY = os.environ["AZURE_OPENAI_GPT4_API_KEY"]
     DEPLOYMENT_ID = os.environ["DEPLOYMENT_ID_GPT4"]
+    logger.info("Use GPT4")
 else:
     AZURE_OPENAI_ENDPOINT = os.environ["AZURE_OPENAI_ENDPOINT"]
     AZURE_OPENAI_API_KEY = os.environ["AZURE_OPENAI_API_KEY"]
     DEPLOYMENT_ID = os.environ["DEPLOYMENT_ID"]
+    logger.info("Use GPT3.5")
 
 # OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 # openai.api_key = os.environ["OPENAI_API_KEY"]
@@ -293,6 +295,13 @@ async def normalize_language_code_as_iso639(langs: List[str]) -> List[str]:
     response = chat_completion_resp.choices[0].message.content
 
     iso_codes = [re.sub(".*: ", "", x) for x in response.strip().split("\n")]
+
+    if len(iso_codes) != len(langs):
+        mappings = {
+            re.sub(": .*", "", x): re.sub(".*: ", "", x)
+            for x in response.strip().split("\n")
+        }
+        iso_codes = [mappings.get(x, "und") for x in langs]
 
     iso_codes = [
         y if y.isascii() and len(y) <= 8 and langcodes.get(y).is_valid() else "und" for _, y in zip(langs, iso_codes)
