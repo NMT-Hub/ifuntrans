@@ -1,21 +1,16 @@
-import pytest
-import pandas
+import os
+
+from ifuntrans.tm import TranslationMemory
+
+test_file = os.path.join(os.path.dirname(__file__), "assets/terms.xlsx")
 
 
-@pytest.mark.skip(reason="tm.xlsx is not available")
 def test_tm():
-    init_tm_indexing()
-    # search
-    tm_path = get_tm_path()
-    tm_df = pandas.read_excel(tm_path)
-    tm_df = tm_df.iloc[1:]
+    tm = TranslationMemory(test_file)
 
-    # random choose some rows
-    rows = tm_df.sample(10).iterrows()
+    result = tm.search_tm("4、射手会克制硬汉，硬汉克制骑手，骑手克制射手，运输者被以上三个兵种克制，进行战斗时多注意敌我兵种的克制，可能会有出其不意的效果。", "zh", "en")
 
-    for _, row in rows:
-        source_lang = row.index[1]
-        for target_lang in tm_df.columns[2:]:
-            string = str(row[source_lang])
-            source, _ = search_tm(string, source_lang, target_lang)
-            assert source in string
+    assert "射手" in result
+    assert "骑手" in result
+    assert "运输者" in result
+    assert "硬汉" in result

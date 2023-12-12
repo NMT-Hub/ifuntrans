@@ -1,6 +1,7 @@
 import asyncio
 import os
 import re
+import typing
 from itertools import chain
 from typing import Dict, Iterable, List, Optional, Tuple
 
@@ -10,8 +11,11 @@ from loguru import logger
 from more_itertools import windowed
 
 from ifuntrans.async_translators.google import batch_translate_texts as google_batch_translate_texts
-from ifuntrans.tm import TranslationMemory
 from ifuntrans.tokenizer import tokenizer
+
+if typing.TYPE_CHECKING:
+    from ifuntrans.tm import TranslationMemory
+
 
 if os.environ.get("USE_GPT4", None):
     AZURE_OPENAI_ENDPOINT = os.environ["AZURE_OPENAI_GPT4_ENDPOINT"]
@@ -188,7 +192,7 @@ TRANSLATION_FAILURE = "<|Openai 翻译失败|>"
 
 
 async def batch_translate_texts(
-    texts: List[str], source_language_code: str, target_language_code: str, tm: Optional[TranslationMemory] = None
+    texts: List[str], source_language_code: str, target_language_code: str, tm: Optional["TranslationMemory"] = None
 ) -> List[str]:
     mock_target = [TRANSLATION_FAILURE] * len(texts)
     translations = mock_target
@@ -297,10 +301,7 @@ async def normalize_language_code_as_iso639(langs: List[str]) -> List[str]:
     iso_codes = [re.sub(".*: ", "", x) for x in response.strip().split("\n")]
 
     if len(iso_codes) != len(langs):
-        mappings = {
-            re.sub(": .*", "", x): re.sub(".*: ", "", x)
-            for x in response.strip().split("\n")
-        }
+        mappings = {re.sub(": .*", "", x): re.sub(".*: ", "", x) for x in response.strip().split("\n")}
         iso_codes = [mappings.get(x, "und") for x in langs]
 
     iso_codes = [

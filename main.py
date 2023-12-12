@@ -9,6 +9,7 @@ import pandas as pd
 from openpyxl.styles import Font
 
 from ifuntrans.async_translators.chatgpt import normalize_language_code_as_iso639
+from ifuntrans.tm import TranslationMemory
 from ifuntrans.translate import translate
 
 
@@ -20,6 +21,10 @@ async def main():
     parser.add_argument("-tm", "--translate-memory-file", help="The translate memory file", default=None, type=str)
 
     args = parser.parse_args()
+    if args.translate_memory_file is not None:
+        TranslationMemory(args.translate_memory_file)
+    else:
+        pass
 
     if args.output is None:
         args.output = args.file
