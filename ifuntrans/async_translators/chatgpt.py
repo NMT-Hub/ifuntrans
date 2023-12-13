@@ -78,8 +78,7 @@ def _fix_ordianl_numbers(src: str, tgt: str) -> str:
 async def _chatgpt_translate(
     origin: List[str],
     target: List[str],
-    searched_srouces: List[str],
-    searched_targets: List[str],
+    searched_tm: List[Dict[str, str]],
     src_lang: str,
     tgt_lang: str,
     instructions="",
@@ -88,42 +87,48 @@ async def _chatgpt_translate(
     src_lang_name = langcodes.get(src_lang).display_name()
     tgt_lang_name = langcodes.get(tgt_lang).display_name()
 
-    def chunk() -> Iterable[Tuple[List[str], List[str], str, str]]:
+    def chunk() -> Iterable[Tuple[List[str], List[str], List[Dict[str, str]]]]:
         source_chunk = []
         target_chunk = []
+        tm_chunk = []
 
         cur_len = 0
-        for src, tgt, es, et in zip(origin, target, searched_srouces, searched_targets):
+        for src, tgt, sts in zip(origin, target, searched_tm):
             len_src = len(tokenizer.encode(src))
-            # len_tgt = len(tokenizer.encode(tgt))
             len_tgt = 0
 
             source_chunk.append(src)
             target_chunk.append(tgt)
+            tm_chunk.append(sts)
             cur_len += len_src + len_tgt
 
             if cur_len > max_length:
-                yield source_chunk, target_chunk, es, et
+                yield source_chunk, target_chunk, tm_chunk
                 source_chunk = []
                 target_chunk = []
+                tm_chunk = []
                 cur_len = 0
 
         if source_chunk:
-            yield source_chunk, target_chunk, es, et
+            yield source_chunk, target_chunk, tm_chunk
 
     tasks = []
     chunked = list(chunk())
-    for i, (src, tgt, example_source, example_target) in enumerate(chunked):
+    for i, (src, tgt, st) in enumerate(chunked):
         query = ""
         for s, _ in zip(src, tgt):
             # replace all blank with space
             query += s + "\n"
 
+        merged_tm = {}
+        for d in st:
+            merged_tm.update(d)
+
         system_prompt = CHATGPT_DOC_TRANSLATE_PROMPT.format(tgt_lang=tgt_lang_name, instructions=instructions)
         messages = [{"role": "system", "content": system_prompt}]
 
-        example_source = [item for item in example_source if item.strip()]
-        example_target = [item for item in example_target if item.strip()]
+        example_source = list(merged_tm.keys())
+        example_target = list(merged_tm.values())
         if example_source and example_target:
             messages.append(
                 {
@@ -157,7 +162,7 @@ async def _chatgpt_translate(
             logger.debug(f"ChatGPT finish {len(fixed) + 1}/{len(tasks)} chunks")
             answer = response.strip().split("\n")
 
-            src, tgt, _, _ = chunked[order]
+            src, tgt, _ = chunked[order]
 
             # In case that there are multiple new lines in the source sentence
             translations = []
@@ -198,18 +203,16 @@ async def batch_translate_texts(
     translations = mock_target
 
     # search from TM
-    searched_srouces = []
-    searched_targets = []
+    searched_tm = []
 
     for i, text in enumerate(texts):
         if tm is None:
-            source, target = "", ""
+            searched_tm.append({})
         else:
-            source, target = tm.search_tm(text, source_language_code, target_language_code)
-        searched_srouces.append(source)
-        searched_targets.append(target)
-        if source == text:
-            translations[i] = target
+            search_result = tm.search_tm(text, source_language_code, target_language_code)
+            if text in search_result:
+                translations[i] = search_result[text]
+            searched_tm.append(search_result)
 
     max_length = MAX_LENGTH
     prev_failures_indices = []
@@ -223,13 +226,11 @@ async def batch_translate_texts(
         prev_failures_indices = failure_indices
         cur_texts = [texts[i] for i in failure_indices]
         cur_target = [mock_target[i] for i in failure_indices]
-        [searched_srouces[i] for i in failure_indices]
-        [searched_targets[i] for i in failure_indices]
+        cur_tm = [searched_tm[i] for i in failure_indices]
         cur_translations = await _chatgpt_translate(
             cur_texts,
             cur_target,
-            searched_srouces,
-            searched_targets,
+            cur_tm,
             source_language_code,
             target_language_code,
             max_length=max_length,

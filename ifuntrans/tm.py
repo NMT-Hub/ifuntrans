@@ -21,23 +21,8 @@ class TranslationMemory(object):
         # return (pathlib.Path(__file__).parent.parent / ".index").resolve().as_posix()
         return ":memory:"
 
-    def __init__(self, tm_path: str):
-        # TODO: empty tm_path with only langs
-        self.tm_path = tm_path
-
-        tm_df = (
-            pandas.read_excel(self.tm_path, engine="openpyxl")
-            .fillna("")
-            .astype(str)
-            .drop_duplicates()
-            # .applymap(str.lower)
-        )
-        langs = asyncio.run(normalize_language_code_as_iso639(tm_df.columns.tolist()))
-
-        # 第一列应该是id,这里强制设置为und
-        langs[0] = "und"
-        tm_df.columns = langs
-
+    def __init__(self, tm_df: pandas.DataFrame):
+        langs = tm_df.columns.tolist()
         self.langs = [lang for lang in langs if lang != "und"]
 
         columns = {lang: TEXT(stored=True) for lang in self.langs}
@@ -93,3 +78,21 @@ class TranslationMemory(object):
 
         result = {k: v for k, v in result.items() if k in text}
         return result
+
+
+async def create_tm_from_excel(tm_path: str) -> TranslationMemory:
+    tm_df = (
+        pandas.read_excel(tm_path, engine="openpyxl")
+        .fillna("")
+        .astype(str)
+        .drop_duplicates()
+        # .applymap(str.lower)
+    )
+    langs = await normalize_language_code_as_iso639(tm_df.columns.tolist())
+
+    # 第一列应该是id,这里强制设置为und
+    langs[0] = "und"
+    tm_df.columns = langs
+
+    tm = TranslationMemory(tm_df)
+    return tm

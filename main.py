@@ -9,7 +9,7 @@ import pandas as pd
 from openpyxl.styles import Font
 
 from ifuntrans.async_translators.chatgpt import normalize_language_code_as_iso639
-from ifuntrans.tm import TranslationMemory
+from ifuntrans.tm import create_tm_from_excel
 from ifuntrans.translate import translate
 
 
@@ -22,9 +22,9 @@ async def main():
 
     args = parser.parse_args()
     if args.translate_memory_file is not None:
-        TranslationMemory(args.translate_memory_file)
+        tm = await create_tm_from_excel(args.translate_memory_file)
     else:
-        pass
+        tm = None
 
     if args.output is None:
         args.output = args.file
@@ -89,7 +89,7 @@ async def main():
             en_empty_rows[zh_column].tolist(),
             from_lang="zh",
             to_lang="en",
-            tm=None,
+            tm=tm,
         )
         dataframe.loc[en_empty_rows.index, en_column] = en_empty_rows_zh_translation
 
@@ -105,7 +105,7 @@ async def main():
                     empty_rows[zh_column].tolist(),
                     from_lang="zh",
                     to_lang=lang_code,
-                    tm=None,
+                    tm=tm,
                 )
                 dataframe.loc[empty_rows.index, column] = empty_rows_zh_translation
             else:
@@ -115,7 +115,7 @@ async def main():
                     empty_rows[en_column].tolist(),
                     from_lang="en",
                     to_lang=lang_code,
-                    tm=None,
+                    tm=tm,
                 )
                 dataframe.loc[empty_rows.index, column] = empty_rows_en_translation
 
