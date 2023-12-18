@@ -100,7 +100,7 @@ async def main():
 
             if langcodes.get(lang_code).language in ["zh", "ja", "ko"]:
                 # for cjk languages, we translate from Chinese
-                empty_rows = dataframe[dataframe[column].isnull()]
+                empty_rows = dataframe[dataframe[column].isnull() & dataframe[zh_column].notnull()]
                 empty_rows_zh_translation: List[str] = await translate(
                     empty_rows[zh_column].tolist(),
                     from_lang="zh",
@@ -110,7 +110,7 @@ async def main():
                 dataframe.loc[empty_rows.index, column] = empty_rows_zh_translation
             else:
                 # for other languages, we translate from English
-                empty_rows = dataframe[dataframe[column].isnull()]
+                empty_rows = dataframe[dataframe[column].isnull() & dataframe[en_column].notnull()]
                 empty_rows_en_translation: List[str] = await translate(
                     empty_rows[en_column].tolist(),
                     from_lang="en",
@@ -130,7 +130,7 @@ async def main():
                 if cell.value is None:
                     try:
                         cell.value = dataframe.iloc[cell.row - 2, cell.column - 1]
-                    except IndexError:
+                    except (IndexError, ValueError):
                         continue
                     cell.font = Font(color="FF0000")
     workbook.save(args.output)
