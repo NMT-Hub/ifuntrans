@@ -83,6 +83,7 @@ async def _chatgpt_translate(
     tgt_lang: str,
     instructions="",
     max_length=MAX_LENGTH,
+    **kwargs,
 ) -> List[str]:
     src_lang_name = langcodes.get(src_lang).display_name()
     tgt_lang_name = langcodes.get(tgt_lang).display_name()
@@ -197,7 +198,11 @@ TRANSLATION_FAILURE = "<|Openai 翻译失败|>"
 
 
 async def batch_translate_texts(
-    texts: List[str], source_language_code: str, target_language_code: str, tm: Optional["TranslationMemory"] = None
+    texts: List[str],
+    source_language_code: str,
+    target_language_code: str,
+    tm: Optional["TranslationMemory"] = None,
+    **kwargs,
 ) -> List[str]:
     mock_target = [TRANSLATION_FAILURE] * len(texts)
     translations = mock_target
@@ -234,6 +239,7 @@ async def batch_translate_texts(
             source_language_code,
             target_language_code,
             max_length=max_length,
+            **kwargs,
         )
         max_length = max_length // 2
 

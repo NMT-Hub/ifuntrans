@@ -8,6 +8,7 @@ import openpyxl
 import pandas as pd
 from openpyxl.styles import Font
 
+from ifuntrans.api.localization import normalize_case
 from ifuntrans.async_translators.chatgpt import normalize_language_code_as_iso639
 from ifuntrans.tm import create_tm_from_excel
 from ifuntrans.translate import translate
@@ -19,6 +20,7 @@ async def main():
     parser.add_argument("--output", help="The output file", default=None, type=str)
     parser.add_argument("-l", "--language", nargs="+", help="The additional languages to translate to", default=[])
     parser.add_argument("-tm", "--translate-memory-file", help="The translate memory file", default=None, type=str)
+    parser.add_argument("-i", "--instructions", help="The instructions prompt", default="", type=str)
 
     args = parser.parse_args()
     if args.translate_memory_file is not None:
@@ -40,6 +42,8 @@ async def main():
         dataframe = dataframe.astype(str)
         # apply str.strip to all columns
         dataframe = dataframe.apply(lambda x: x.str.strip())
+        # apply normalize_case to all columns
+        dataframe = dataframe.applymap(normalize_case)
         # manually replace "" with pd.NA
         dataframe.replace("", pd.NA, inplace=True)
         dataframe.replace("nan", pd.NA, inplace=True)
@@ -78,6 +82,7 @@ async def main():
             from_lang="en",
             to_lang="zh",
             tm=None,
+            instructions=args.instructions,
         )
         dataframe.loc[zh_empty_rows.index, zh_column] = zh_empty_rows_en_translation
 
@@ -90,6 +95,7 @@ async def main():
             from_lang="zh",
             to_lang="en",
             tm=tm,
+            instructions=args.instructions,
         )
         dataframe.loc[en_empty_rows.index, en_column] = en_empty_rows_zh_translation
 
@@ -106,6 +112,7 @@ async def main():
                     from_lang="zh",
                     to_lang=lang_code,
                     tm=tm,
+                    instructions=args.instructions,
                 )
                 dataframe.loc[empty_rows.index, column] = empty_rows_zh_translation
             else:
@@ -116,6 +123,7 @@ async def main():
                     from_lang="en",
                     to_lang=lang_code,
                     tm=tm,
+                    instructions=args.instructions,
                 )
                 dataframe.loc[empty_rows.index, column] = empty_rows_en_translation
 
