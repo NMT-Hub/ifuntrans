@@ -1,5 +1,4 @@
 """Translation Memory"""
-import asyncio
 import pathlib
 from typing import Dict
 
@@ -15,6 +14,11 @@ from ifuntrans.tokenizer import detokenize, tokenize
 DEFAULT_TM_PATH = (pathlib.Path(__file__).parent.parent / "assets" / "tm.xlsx").resolve().as_posix()
 
 
+def analyzer(x):
+    x = x.lower()
+    return tokenize(x)
+
+
 class TranslationMemory(object):
     @property
     def index_path(self):
@@ -26,9 +30,11 @@ class TranslationMemory(object):
         self.langs = [lang for lang in langs if lang != "und"]
 
         columns = {lang: TEXT(stored=True) for lang in self.langs}
+        origin_columns = {f"{lang}_origin": TEXT(stored=True) for lang in self.langs}
         schema = Schema(
             STR_ID=ID(stored=True),
             **columns,
+            **origin_columns,
         )
 
         st = RamStorage()
@@ -41,7 +47,8 @@ class TranslationMemory(object):
             docs = {}
             for lang in self.langs:
                 string = row[lang]
-                docs[lang] = tokenize(string)
+                docs[lang] = analyzer(string)
+                docs[f"{lang}_origin"] = string
 
             # tokenized data
             writer.add_document(
@@ -68,15 +75,16 @@ class TranslationMemory(object):
             return {}
 
         with self.ix.searcher() as searcher:
-            tokens = tokenize(text)
+            tokens = analyzer(text)
             query = QueryParser(source_lang, self.ix.schema, group=OrGroup).parse(tokens)
             results = searcher.search(query, limit=limit)
             if len(results) == 0:
                 return {}
 
-            result = {detokenize(result[source_lang]): detokenize(result[target_lang]) for result in results}
+            result = {result[f"{source_lang}_origin"]: result[f"{target_lang}_origin"] for result in results}
 
-        result = {k: v for k, v in result.items() if k in text}
+        # TODO: 这里需要改进
+        result = {k: v for k, v in result.items() if k.lower() in text.lower()}
         return result
 
 

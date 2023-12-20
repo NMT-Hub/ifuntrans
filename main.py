@@ -81,7 +81,7 @@ async def main():
             zh_empty_rows[en_column].tolist(),
             from_lang="en",
             to_lang="zh",
-            tm=None,
+            tm=tm,
             instructions=args.instructions,
         )
         dataframe.loc[zh_empty_rows.index, zh_column] = zh_empty_rows_en_translation
