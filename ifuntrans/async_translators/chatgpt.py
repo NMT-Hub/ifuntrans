@@ -134,7 +134,7 @@ async def _chatgpt_translate(
             messages.append(
                 {
                     "role": "user",
-                    "content": f"{src_lang_name} Source: \n"
+                    "content": f"Please translate these terms. And all translations must follow these terms. {src_lang_name} Source: \n"
                     + "\n".join(example_source)
                     + f"\n\n{tgt_lang_name} Translations: \n",
                 }
