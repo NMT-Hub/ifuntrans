@@ -144,7 +144,7 @@ async def _chatgpt_translate(
                 }
             )
             messages.append({"role": "assistant", "content": "\n".join(example_target)})
-            logger.debug(messages)
+            logger.debug(merged_tm)
 
         messages.append(
             {"role": "user", "content": f"{src_lang_name} Source: \n" + query + f"\n\n{tgt_lang_name} Translations: \n"}

@@ -1,6 +1,5 @@
 import argparse
 import asyncio
-import warnings
 from typing import List
 
 import langcodes
@@ -51,6 +50,7 @@ async def main():
 
         # normalize the language code
         iso_codes = await normalize_language_code_as_iso639(columns)
+        iso_codes[0] = "und"  # 第一列应该是id,这里强制设置为und
         columns_2_langcodes = {}
         for column, code in zip(columns, iso_codes):
             if code == "und":
@@ -65,15 +65,15 @@ async def main():
             zh_lang_code = langcodes.closest_supported_match("zh", langcodes_2_columns.keys())
             zh_column = langcodes_2_columns[zh_lang_code]
         except KeyError:
-            warnings.warn(f"No Chinese column found in sheet {sheet_name}. Skip this sheet")
-            continue
+            dataframe["zh"] = pd.NA
+            zh_column = "zh"
 
         try:
             en_lang_code = langcodes.closest_supported_match("en", langcodes_2_columns.keys())
             en_column = langcodes_2_columns[en_lang_code]
         except KeyError:
-            warnings.warn(f"No English column found in sheet {sheet_name}. Skip this sheet")
-            continue
+            dataframe["en"] = pd.NA
+            en_column = "en"
         # select rows that zh_column is empty and en_column is not empty
         # these rows will be translated from English to Chinese
         zh_empty_rows = dataframe[dataframe[zh_column].isnull() & dataframe[en_column].notnull()]
@@ -138,7 +138,7 @@ async def main():
                 if cell.value is None:
                     try:
                         cell.value = dataframe.iloc[cell.row - 2, cell.column - 1]
-                    except (IndexError, ValueError):
+                    except (IndexError, ValueError, AttributeError):
                         continue
                     cell.font = Font(color="FF0000")
     workbook.save(args.output)
