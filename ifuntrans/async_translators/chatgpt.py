@@ -52,9 +52,13 @@ You will be provided with sentences, and your task is to translate it into {tgt_
 async def create_chat_completion(order: int, messages: List[Dict[str, str]]):
     try:
         chat_completion_resp = await openai.ChatCompletion.acreate(
-            model="gpt-4", messages=messages, timeout=30, deployment_id=DEPLOYMENT_ID, temperature=0.0
+            messages=messages, timeout=30, deployment_id=DEPLOYMENT_ID, temperature=0.0
         )
         response = chat_completion_resp.choices[0].message.content
+
+    except AttributeError:
+        logger.warning(f"ChatGPT failed: {chat_completion_resp.choices[0]}")
+        response = ""
     except Exception as e:
         logger.warning(f"ChatGPT failed: {e}")
         response = ""
@@ -140,6 +144,7 @@ async def _chatgpt_translate(
                 }
             )
             messages.append({"role": "assistant", "content": "\n".join(example_target)})
+            logger.debug(messages)
 
         messages.append(
             {"role": "user", "content": f"{src_lang_name} Source: \n" + query + f"\n\n{tgt_lang_name} Translations: \n"}

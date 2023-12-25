@@ -1,7 +1,9 @@
 """Translation Memory"""
 import pathlib
+import re
 from typing import Dict
 
+import jieba
 import langcodes
 import pandas
 from whoosh.fields import ID, TEXT, Schema
@@ -9,14 +11,16 @@ from whoosh.filedb.filestore import RamStorage
 from whoosh.qparser import OrGroup, QueryParser
 
 from ifuntrans.async_translators.chatgpt import normalize_language_code_as_iso639
-from ifuntrans.tokenizer import detokenize, tokenize
+from ifuntrans.tokenizer import tokenize
 
 DEFAULT_TM_PATH = (pathlib.Path(__file__).parent.parent / "assets" / "tm.xlsx").resolve().as_posix()
 
 
 def analyzer(x):
     x = x.lower()
-    return tokenize(x)
+    x = " ".join(jieba.cut(x))
+    x = re.sub(r"\s+", " ", x)
+    return x
 
 
 class TranslationMemory(object):
