@@ -64,21 +64,6 @@ async def create_chat_completion(order: int, messages: List[Dict[str, str]]):
         response = ""
     return order, response
 
-
-def _fix_ordianl_numbers(src: str, tgt: str) -> str:
-    """
-    Filter ordinal numbers.
-    """
-    # filter ordianl numbers
-    if re.match(r"^\d+\.", tgt) and not re.match(r"^\d+\.", src):
-        tgt = re.sub(r"\d+\.", "", tgt).strip()
-
-    if re.match(r"^\d+\.\s?\d+\.", tgt) and re.match(r"^\d+\.", src) and not re.match(r"^\d+\.\s?\d+\.", src):
-        tgt = re.sub(r"\d+\.\s?(\d+\.)", r"\1", tgt).strip()
-
-    return tgt
-
-
 async def _chatgpt_translate(
     origin: List[str],
     target: List[str],
@@ -119,11 +104,19 @@ async def _chatgpt_translate(
 
     tasks = []
     chunked = list(chunk())
+    ord_cache_list = []
     for i, (src, tgt, st) in enumerate(chunked):
+        ord_cache = {}
         query = ""
-        for s, _ in zip(src, tgt):
+        for j, (s, _) in enumerate(zip(src, tgt)):
+            ord_matched = re.match(r"^\d+[.、]", s)
+            if ord_matched:
+                ord_cache[j] = ord_matched.group(0)
+                s = re.sub(r"^\d+[.、]", "", s)
             # replace all blank with space
             query += s + "\n"
+
+        ord_cache_list.append(ord_cache)
 
         merged_tm = {}
         for d in st:
@@ -187,15 +180,14 @@ async def _chatgpt_translate(
                     f"Answer: {translations} "
                 )
                 translations = tgt
+            else:
+                translations = [ord_cache.get(i, "") + " " + t for i, t in enumerate(translations)]
+
+            ord_cache = ord_cache_list[order]
             fixed.append((order, translations))
 
     fixed.sort(key=lambda x: x[0])
     fixed = list(chain.from_iterable([x[1] for x in fixed]))
-
-    # filter ordianl numbers
-    for i in range(len(fixed)):
-        fixed[i] = _fix_ordianl_numbers(origin[i], fixed[i])
-
     return fixed
 
 
@@ -283,6 +275,9 @@ async def normalize_language_code_as_iso639(langs: List[str]) -> List[str]:
     system_prompt = """
     Please normalize the language name to ISO 639-2 format. If the language name is not a valid ISO 639 language name, please use "not a valid ISO 639 language name" instead.
     """
+    mask = [True if re.search(r"[0-9:]", x) else False for x in langs]
+
+    langs = [lang for lang, m in zip(langs, mask) if not m]
 
     messages = [
         {"role": "system", "content": system_prompt},
@@ -319,4 +314,8 @@ async def normalize_language_code_as_iso639(langs: List[str]) -> List[str]:
     iso_codes = [
         y if y.isascii() and len(y) <= 8 and langcodes.get(y).is_valid() else "und" for _, y in zip(langs, iso_codes)
     ]
+
+    for i, m in enumerate(mask):
+        if m:
+            iso_codes.insert(i, "und")
     return iso_codes
