@@ -49,8 +49,8 @@ async def main():
         columns = dataframe.columns
 
         # normalize the language code
-        iso_codes = await normalize_language_code_as_iso639(columns)
-        iso_codes[0] = "und"  # 第一列应该是id,这里强制设置为und
+        iso_codes = await normalize_language_code_as_iso639(columns[1:])
+        iso_codes.insert(0, "und")  # the first column is the key
         columns_2_langcodes = {}
         for column, code in zip(columns, iso_codes):
             if code == "und":
