@@ -128,6 +128,12 @@ async def main():
         # normalize the language code
         iso_codes = await normalize_language_code_as_iso639(columns[1:])
         iso_codes.insert(0, "und")  # the first column is the key
+
+        if args.language:
+            for i, code in enumerate(iso_codes):
+                if not langcodes.closest_supported_match(code, args.language + ["zh", "en"]):
+                    iso_codes[i] = "und"
+
         columns_2_langcodes = {}
         for column, code in zip(columns, iso_codes):
             if code == "und":
