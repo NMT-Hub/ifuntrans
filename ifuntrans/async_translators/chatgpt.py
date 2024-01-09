@@ -43,7 +43,7 @@ CHATGPT_DOC_TRANSLATE_PROMPT = """
 You will be provided with sentences, and your task is to translate it into {tgt_lang}.
 
 1. Please output the translations in the same order as the input sentences (one translation per line).
-2. Please do not add or remove any punctuation marks or any numbers.
+2. Please do not add or remove any punctuation marks or any numbers. For example, [/color] <br> etc.
 3. Please don't do any explaining.
 4. Please keep the unicode character representation of roman numerals in translations. e.g.: Ⅰ Ⅱ Ⅲ Ⅳ Ⅴ Ⅵ Ⅶ Ⅷ Ⅸ Ⅹ
 """  # TODO: Dynamic load abbreviations from database
@@ -273,7 +273,7 @@ async def translate_text(text, *args, **kwargs):
 
 async def normalize_language_code_as_iso639(langs: List[str]) -> List[str]:
     system_prompt = """
-    Please normalize the language name to ISO 639-2 format. If the language name is not a valid ISO 639 language name, please use "not a valid ISO 639 language name" instead.
+    Please normalize the language name to ISO 639-2 format. If the language name is not a valid ISO 639 language name, please use "not a valid ISO 639 language name" instead. Don't do any explaination.
     """
     mask = [True if re.search(r"[0-9:]", x) else False for x in langs]
 
