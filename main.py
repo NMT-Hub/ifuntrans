@@ -13,6 +13,83 @@ from ifuntrans.tm import create_tm_from_excel
 from ifuntrans.translate import translate
 
 
+async def translate_group(
+    dataframe: pd.DataFrame,
+    langcodes_2_columns: dict,
+    columns_2_langcodes: dict,
+    instructions: str = "",
+    tm=None,
+):
+    # find the most common language code. more specifically, "zh" and "en"
+    # zh and en will translate to each other
+    # the others will be translated from these two languages
+    try:
+        zh_lang_code = langcodes.closest_supported_match("zh", langcodes_2_columns.keys())
+        zh_column = langcodes_2_columns[zh_lang_code]
+    except KeyError:
+        dataframe["zh"] = pd.NA
+        zh_column = "zh"
+
+    try:
+        en_lang_code = langcodes.closest_supported_match("en", langcodes_2_columns.keys())
+        en_column = langcodes_2_columns[en_lang_code]
+    except KeyError:
+        dataframe["en"] = pd.NA
+        en_column = "en"
+    # select rows that zh_column is empty and en_column is not empty
+    # these rows will be translated from English to Chinese
+    zh_empty_rows = dataframe[dataframe[zh_column].isnull() & dataframe[en_column].notnull()]
+    zh_empty_rows_en_translation: List[str] = await translate(
+        zh_empty_rows[en_column].tolist(),
+        from_lang="en",
+        to_lang="zh",
+        tm=tm,
+        instructions=instructions,
+    )
+    dataframe.loc[zh_empty_rows.index, zh_column] = zh_empty_rows_en_translation
+
+    # slecet rows that en_column is empty and zh_column is not empty
+    # these rows will be translated from Chinese to English
+    dataframe[dataframe[en_column].isnull() & dataframe[zh_column].notnull()]
+    en_empty_rows = dataframe[dataframe[en_column].isnull() & dataframe[zh_column].notnull()]
+    en_empty_rows_zh_translation: List[str] = await translate(
+        en_empty_rows[zh_column].tolist(),
+        from_lang="zh",
+        to_lang="en",
+        tm=tm,
+        instructions=instructions,
+    )
+    dataframe.loc[en_empty_rows.index, en_column] = en_empty_rows_zh_translation
+
+    for column in columns_2_langcodes.keys():
+        if column in [zh_column, en_column]:
+            continue
+        lang_code = columns_2_langcodes[column]
+
+        if langcodes.get(lang_code).language in ["zh", "ja", "ko"]:
+            # for cjk languages, we translate from Chinese
+            empty_rows = dataframe[dataframe[column].isnull() & dataframe[zh_column].notnull()]
+            empty_rows_zh_translation: List[str] = await translate(
+                empty_rows[zh_column].tolist(),
+                from_lang="zh",
+                to_lang=lang_code,
+                tm=tm,
+                instructions=instructions,
+            )
+            dataframe.loc[empty_rows.index, column] = empty_rows_zh_translation
+        else:
+            # for other languages, we translate from English
+            empty_rows = dataframe[dataframe[column].isnull() & dataframe[en_column].notnull()]
+            empty_rows_en_translation: List[str] = await translate(
+                empty_rows[en_column].tolist(),
+                from_lang="en",
+                to_lang=lang_code,
+                tm=tm,
+                instructions=instructions,
+            )
+            dataframe.loc[empty_rows.index, column] = empty_rows_en_translation
+
+
 async def main():
     parser = argparse.ArgumentParser(description="Translate excel file")
     parser.add_argument("file", help="The excel file to translate")
@@ -23,9 +100,9 @@ async def main():
 
     args = parser.parse_args()
     if args.translate_memory_file is not None:
-        tm = await create_tm_from_excel(args.translate_memory_file)
+        await create_tm_from_excel(args.translate_memory_file)
     else:
-        tm = None
+        pass
 
     if args.output is None:
         args.output = args.file
@@ -55,77 +132,16 @@ async def main():
         for column, code in zip(columns, iso_codes):
             if code == "und":
                 continue
-            columns_2_langcodes[column] = code
-        langcodes_2_columns = {v: k for k, v in columns_2_langcodes.items()}
-
-        # find the most common language code. more specifically, "zh" and "en"
-        # zh and en will translate to each other
-        # the others will be translated from these two languages
-        try:
-            zh_lang_code = langcodes.closest_supported_match("zh", langcodes_2_columns.keys())
-            zh_column = langcodes_2_columns[zh_lang_code]
-        except KeyError:
-            dataframe["zh"] = pd.NA
-            zh_column = "zh"
-
-        try:
-            en_lang_code = langcodes.closest_supported_match("en", langcodes_2_columns.keys())
-            en_column = langcodes_2_columns[en_lang_code]
-        except KeyError:
-            dataframe["en"] = pd.NA
-            en_column = "en"
-        # select rows that zh_column is empty and en_column is not empty
-        # these rows will be translated from English to Chinese
-        zh_empty_rows = dataframe[dataframe[zh_column].isnull() & dataframe[en_column].notnull()]
-        zh_empty_rows_en_translation: List[str] = await translate(
-            zh_empty_rows[en_column].tolist(),
-            from_lang="en",
-            to_lang="zh",
-            tm=tm,
-            instructions=args.instructions,
-        )
-        dataframe.loc[zh_empty_rows.index, zh_column] = zh_empty_rows_en_translation
-
-        # slecet rows that en_column is empty and zh_column is not empty
-        # these rows will be translated from Chinese to English
-        dataframe[dataframe[en_column].isnull() & dataframe[zh_column].notnull()]
-        en_empty_rows = dataframe[dataframe[en_column].isnull() & dataframe[zh_column].notnull()]
-        en_empty_rows_zh_translation: List[str] = await translate(
-            en_empty_rows[zh_column].tolist(),
-            from_lang="zh",
-            to_lang="en",
-            tm=tm,
-            instructions=args.instructions,
-        )
-        dataframe.loc[en_empty_rows.index, en_column] = en_empty_rows_zh_translation
-
-        for column in columns_2_langcodes.keys():
-            if column in [zh_column, en_column]:
-                continue
-            lang_code = columns_2_langcodes[column]
-
-            if langcodes.get(lang_code).language in ["zh", "ja", "ko"]:
-                # for cjk languages, we translate from Chinese
-                empty_rows = dataframe[dataframe[column].isnull() & dataframe[zh_column].notnull()]
-                empty_rows_zh_translation: List[str] = await translate(
-                    empty_rows[zh_column].tolist(),
-                    from_lang="zh",
-                    to_lang=lang_code,
-                    tm=tm,
-                    instructions=args.instructions,
-                )
-                dataframe.loc[empty_rows.index, column] = empty_rows_zh_translation
+            if code not in columns_2_langcodes.values():
+                columns_2_langcodes[column] = code
             else:
-                # for other languages, we translate from English
-                empty_rows = dataframe[dataframe[column].isnull() & dataframe[en_column].notnull()]
-                empty_rows_en_translation: List[str] = await translate(
-                    empty_rows[en_column].tolist(),
-                    from_lang="en",
-                    to_lang=lang_code,
-                    tm=tm,
-                    instructions=args.instructions,
-                )
-                dataframe.loc[empty_rows.index, column] = empty_rows_en_translation
+                langcodes_2_columns = {v: k for k, v in columns_2_langcodes.items()}
+                await translate_group(dataframe, langcodes_2_columns, columns_2_langcodes, args.instructions)
+                columns_2_langcodes = {column: code}
+
+        if len(columns_2_langcodes) > 0:
+            langcodes_2_columns = {v: k for k, v in columns_2_langcodes.items()}
+            await translate_group(dataframe, langcodes_2_columns, columns_2_langcodes, args.instructions)
 
         sheet_2_dataframes[sheet_name] = dataframe
 
