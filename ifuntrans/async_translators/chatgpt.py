@@ -65,6 +65,20 @@ async def create_chat_completion(order: int, messages: List[Dict[str, str]]):
     return order, response
 
 
+def _fix_ordianl_numbers(src: str, tgt: str) -> str:
+    """
+    Filter ordinal numbers.
+    """
+    # filter ordianl numbers
+    if re.match(r"^\d+\.", tgt) and not re.match(r"^\d+\.", src):
+        tgt = re.sub(r"\d+\.", "", tgt).strip()
+
+    if re.match(r"^\d+\.\s?\d+\.", tgt) and re.match(r"^\d+\.", src) and not re.match(r"^\d+\.\s?\d+\.", src):
+        tgt = re.sub(r"\d+\.\s?(\d+\.)", r"\1", tgt).strip()
+
+    return tgt
+
+
 async def _chatgpt_translate(
     origin: List[str],
     target: List[str],
@@ -189,6 +203,11 @@ async def _chatgpt_translate(
 
     fixed.sort(key=lambda x: x[0])
     fixed = list(chain.from_iterable([x[1] for x in fixed]))
+
+    # filter ordianl numbers
+    for i in range(len(fixed)):
+        fixed[i] = _fix_ordianl_numbers(origin[i], fixed[i])
+
     return fixed
 
 

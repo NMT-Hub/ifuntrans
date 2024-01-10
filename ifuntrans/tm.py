@@ -69,7 +69,8 @@ class TranslationMemory(object):
                 **{source_lang: tokenize(source), target_lang: tokenize(target)},
             )
 
-    def search_tm(self, text: str, source_lang: str, target_lang: str, limit=5) -> Dict[str, str]:
+    def search_tm(self, text: str, source_lang: str, target_lang: str, limit=5, term_mode=True) -> Dict[str, str]:
+        """Search terminology"""
         if source_lang not in self.langs:
             source_lang = langcodes.closest_supported_match(source_lang, self.langs)
         if target_lang not in self.langs:
@@ -87,8 +88,10 @@ class TranslationMemory(object):
 
             result = {result[f"{source_lang}_origin"]: result[f"{target_lang}_origin"] for result in results}
 
-        # TODO: 这里需要改进
-        result = {k: v for k, v in result.items() if k.lower() in text.lower()}
+        if term_mode:
+            # 术语模式, 只返回包含原文的结果
+            # TODO: 这里需要改进
+            result = {k: v for k, v in result.items() if k.lower() in text.lower()}
         return result
 
 

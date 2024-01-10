@@ -4,6 +4,7 @@ import langcodes
 import pytest
 
 from ifuntrans.async_translators.chatgpt import (
+    _fix_ordianl_numbers,
     batch_translate_texts,
     normalize_language_code_as_iso639,
     translate_text,
@@ -25,6 +26,20 @@ async def test_batch_translate_texts():
 
     for r in result:
         assert "测试" in r
+
+
+@pytest.mark.parametrize(
+    "src, tgt, expected",
+    [
+        ("1. Hi, how are you!", "6. 1. 你好！", "1. 你好！"),
+        ("1. Hi, how are you!", "6.1. 你好！", "1. 你好！"),
+        ("1. Hi, how are you!", "1. 你好！", "1. 你好！"),
+        ("Hi, how are you!", "1. 你好！", "你好！"),
+    ],
+)
+def test_fix_ordianl_numbers(src: str, tgt: str, expected: str):
+    result = _fix_ordianl_numbers(src, tgt)
+    assert result == expected
 
 
 @pytest.mark.parametrize(
@@ -119,8 +134,8 @@ async def test_batch_translate_texts():
         ),
         (
             [
-                "脚本编号", 
-                "中文画面内容",	
+                "脚本编号",
+                "中文画面内容",
                 "英文画面内容（需翻译）",
                 "中文语音",
                 "英文语音（需翻译）	",
@@ -137,8 +152,8 @@ async def test_batch_translate_texts():
                 "zh",
                 "en",
                 "und",
-            ]
-        )
+            ],
+        ),
     ],
 )
 @pytest.mark.asyncio
