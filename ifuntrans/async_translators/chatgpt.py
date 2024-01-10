@@ -70,11 +70,11 @@ def _fix_ordianl_numbers(src: str, tgt: str) -> str:
     Filter ordinal numbers.
     """
     # filter ordianl numbers
-    if re.match(r"^\d+\.", tgt) and not re.match(r"^\d+\.", src):
-        tgt = re.sub(r"\d+\.", "", tgt).strip()
+    if re.match(r"^\s?\d+\.", tgt) and not re.match(r"^\d+\.", src):
+        tgt = re.sub(r"\s?\d+\.", "", tgt).strip()
 
-    if re.match(r"^\d+\.\s?\d+\.", tgt) and re.match(r"^\d+\.", src) and not re.match(r"^\d+\.\s?\d+\.", src):
-        tgt = re.sub(r"\d+\.\s?(\d+\.)", r"\1", tgt).strip()
+    if re.match(r"^\s?\d+\.\s?\d+\.", tgt) and re.match(r"^\s?\d+\.", src) and not re.match(r"^\s?\d+\.\s?\d+\.", src):
+        tgt = re.sub(r"\s?\d+\.\s?(\d+\.)", r"\1", tgt).strip()
 
     return tgt
 
@@ -124,10 +124,10 @@ async def _chatgpt_translate(
         ord_cache = {}
         query = ""
         for j, (s, _) in enumerate(zip(src, tgt)):
-            ord_matched = re.match(r"^\d+[.、]", s)
+            ord_matched = re.match(r"^(<[0-9A-Za-z=#]+>)*\d+[.、]", s)
             if ord_matched:
                 ord_cache[j] = ord_matched.group(0)
-                s = re.sub(r"^\d+[.、]", "", s)
+                s = s[ord_matched.end() :]
             # replace all blank with space
             query += s + "\n"
 

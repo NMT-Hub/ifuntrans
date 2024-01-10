@@ -10,6 +10,7 @@ from ifuntrans import characters
         (r"！！。。", False),
         (r"{$thinkTips}", False),
         ("\n\r", False),
+        (r"%s1%s1", False),
     ],
 )
 def test_need_translate(text, expected):

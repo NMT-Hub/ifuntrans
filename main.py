@@ -30,6 +30,7 @@ async def translate_group(
     except KeyError:
         dataframe["zh"] = pd.NA
         zh_column = "zh"
+        columns_2_langcodes["zh"] = "zh"
 
     try:
         en_lang_code = langcodes.closest_supported_match("en", langcodes_2_columns.keys())
@@ -37,58 +38,47 @@ async def translate_group(
     except KeyError:
         dataframe["en"] = pd.NA
         en_column = "en"
-    # select rows that zh_column is empty and en_column is not empty
-    # these rows will be translated from English to Chinese
-    zh_empty_rows = dataframe[dataframe[zh_column].isnull() & dataframe[en_column].notnull()]
-    zh_empty_rows_en_translation: List[str] = await translate(
-        zh_empty_rows[en_column].tolist(),
-        from_lang="en",
-        to_lang="zh",
-        tm=tm,
-        instructions=instructions,
-    )
-    dataframe.loc[zh_empty_rows.index, zh_column] = zh_empty_rows_en_translation
+        columns_2_langcodes["en"] = "en"
 
-    # slecet rows that en_column is empty and zh_column is not empty
-    # these rows will be translated from Chinese to English
-    dataframe[dataframe[en_column].isnull() & dataframe[zh_column].notnull()]
-    en_empty_rows = dataframe[dataframe[en_column].isnull() & dataframe[zh_column].notnull()]
-    en_empty_rows_zh_translation: List[str] = await translate(
-        en_empty_rows[zh_column].tolist(),
-        from_lang="zh",
-        to_lang="en",
-        tm=tm,
-        instructions=instructions,
-    )
-    dataframe.loc[en_empty_rows.index, en_column] = en_empty_rows_zh_translation
+    async def translate_column(
+        source_column: str,
+        target_column: str,
+    ):
+        from_lang = columns_2_langcodes[source_column]
+        to_lang = columns_2_langcodes[target_column]
+
+        # select rows that target_column is empty and source_column is not empty
+        # these rows will be translated from 'from_lang' to 'to_lang'
+        target_empty_rows = dataframe[dataframe[target_column].isnull() & dataframe[source_column].notnull()]
+        # group by "source_column"
+        # if there are multiple rows with the same "source_column", we translate them together
+        # this will save the translation cost
+        dedup_group = target_empty_rows.groupby(source_column)
+        translation: List[str] = await translate(
+            dedup_group.groups.keys(),
+            from_lang=from_lang,
+            to_lang=to_lang,
+            tm=tm,
+            instructions=instructions,
+        )
+        # update the group
+        dataframe.loc[target_empty_rows.index, target_column] = dedup_group[target_column].transform(
+            lambda _: translation.pop(0)
+        )
+
+    await translate_column(en_column, zh_column)
+    await translate_column(zh_column, en_column)
 
     for column in columns_2_langcodes.keys():
         if column in [zh_column, en_column]:
             continue
+
         lang_code = columns_2_langcodes[column]
 
         if langcodes.get(lang_code).language in ["zh", "ja", "ko"]:
-            # for cjk languages, we translate from Chinese
-            empty_rows = dataframe[dataframe[column].isnull() & dataframe[zh_column].notnull()]
-            empty_rows_zh_translation: List[str] = await translate(
-                empty_rows[zh_column].tolist(),
-                from_lang="zh",
-                to_lang=lang_code,
-                tm=tm,
-                instructions=instructions,
-            )
-            dataframe.loc[empty_rows.index, column] = empty_rows_zh_translation
+            await translate_column(zh_column, column)
         else:
-            # for other languages, we translate from English
-            empty_rows = dataframe[dataframe[column].isnull() & dataframe[en_column].notnull()]
-            empty_rows_en_translation: List[str] = await translate(
-                empty_rows[en_column].tolist(),
-                from_lang="en",
-                to_lang=lang_code,
-                tm=tm,
-                instructions=instructions,
-            )
-            dataframe.loc[empty_rows.index, column] = empty_rows_en_translation
+            await translate_column(en_column, column)
 
 
 async def main():

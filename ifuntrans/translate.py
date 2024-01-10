@@ -3,7 +3,7 @@ Translate all in one.
 """
 import re
 from itertools import chain
-from typing import List
+from typing import Iterable, List
 
 import langcodes
 from opencc import OpenCC
@@ -58,7 +58,7 @@ def opencc_convert(text, lang_from, lang_to):
     return result
 
 
-async def translate(texts: List[str], from_lang: str, to_lang: str, **kwargs) -> List[str]:
+async def translate(texts: Iterable[str], from_lang: str, to_lang: str, **kwargs) -> List[str]:
     """
     Translate the given dataframe to the given languages.
     :param texts: The texts to translate.
@@ -70,9 +70,10 @@ async def translate(texts: List[str], from_lang: str, to_lang: str, **kwargs) ->
     if from_lang_code.language == "zh" and to_lang_code.language == "zh":
         return [opencc_convert(text, from_lang_code, to_lang_code) for text in texts]
 
-    splited_texts = [re.split(r"([\n\r]+)", text) for text in texts]
+    # split the texts by '\n'. In case of '\\n', replace it with '\n' first
+    splited_texts = [re.split(r"([\n\r]+)", text.replace(r'\n', '\n')) for text in texts]
     splited_texts_len = [len(text) for text in splited_texts]
-    texts = list(chain.from_iterable(splited_texts))
+    texts = [text.strip() for text in chain.from_iterable(splited_texts)]
 
     need_translate_func = get_need_translate_func(from_lang)
     need_translate_mask = [need_translate_func(text) for text in texts]

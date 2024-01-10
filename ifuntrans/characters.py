@@ -19,9 +19,13 @@ def default_need_translate(text):
 def need_translate_zh(text):
     if not default_need_translate(text):
         return False
-    # if contains no Chinese characters, return False
-    # if not re.search(r"[\u4e00-\u9fff]", text):
-    #     return False
+
+    # if only contains non-Chinese characters, and the length of continue A-Z and a-z is less than 2, return False
+    if regex.search(r"\p{Han}", text) is None:
+        all_chars = re.findall("[A-Za-z]+", text)
+        if max(map(len, all_chars)) < 2:
+            return False
+
     return True
 
 
