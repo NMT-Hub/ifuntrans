@@ -64,6 +64,7 @@ async def create_chat_completion(order: int, messages: List[Dict[str, str]]):
         response = ""
     return order, response
 
+
 async def _chatgpt_translate(
     origin: List[str],
     target: List[str],
@@ -275,7 +276,7 @@ async def normalize_language_code_as_iso639(langs: List[str]) -> List[str]:
     system_prompt = """
     Please normalize the language name to ISO 639-2 format. If the language name is not a valid ISO 639 language name, please use "not a valid ISO 639 language name" instead. Don't do any explaination.
     """
-    mask = [True if re.search(r"[0-9:]", x) else False for x in langs]
+    mask = [True if not isinstance(x, str) or re.search(r"[0-9:]", x) else False for x in langs]
 
     langs = [lang for lang, m in zip(langs, mask) if not m]
 
