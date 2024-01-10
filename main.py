@@ -5,6 +5,7 @@ from typing import List
 import langcodes
 import openpyxl
 import pandas as pd
+from loguru import logger
 from openpyxl.styles import Font
 
 from ifuntrans.api.localization import normalize_case
@@ -97,6 +98,7 @@ async def main():
     parser.add_argument("-l", "--language", nargs="+", help="The additional languages to translate to", default=[])
     parser.add_argument("-tm", "--translate-memory-file", help="The translate memory file", default=None, type=str)
     parser.add_argument("-i", "--instructions", help="The instructions prompt", default="", type=str)
+    parser.add_argument("-k", "--keep-format", help="Keep the format of the original file", action="store_true")
 
     args = parser.parse_args()
     if args.translate_memory_file is not None:
@@ -129,6 +131,12 @@ async def main():
         iso_codes = await normalize_language_code_as_iso639(columns[1:])
         iso_codes.insert(0, "und")  # the first column is the key
 
+        if not langcodes.closest_supported_match("zh", iso_codes) and not langcodes.closest_supported_match(
+            "en", iso_codes
+        ):
+            logger.warning(f"Sheet {sheet_name} has no column with valid language code")
+            continue
+
         if args.language:
             for i, code in enumerate(iso_codes):
                 if not langcodes.closest_supported_match(code, args.language + ["zh", "en"]):
@@ -151,19 +159,24 @@ async def main():
 
         sheet_2_dataframes[sheet_name] = dataframe
 
-    for sheet_name, dataframe in sheet_2_dataframes.items():
-        ws = workbook[sheet_name]
-        dataframe = sheet_2_dataframes[sheet_name]
-        # Update the localization workbook
-        for row in ws.iter_rows():
-            for cell in row:
-                if cell.value is None:
-                    try:
-                        cell.value = dataframe.iloc[cell.row - 2, cell.column - 1]
-                    except (IndexError, ValueError, AttributeError):
-                        continue
-                    cell.font = Font(color="FF0000")
-    workbook.save(args.output)
+    if args.keep_format:
+        for sheet_name, dataframe in sheet_2_dataframes.items():
+            ws = workbook[sheet_name]
+            dataframe = sheet_2_dataframes[sheet_name]
+            # Update the localization workbook
+            for row in ws.iter_rows():
+                for cell in row:
+                    if cell.value is None:
+                        try:
+                            cell.value = dataframe.iloc[cell.row - 2, cell.column - 1]
+                        except (IndexError, ValueError, AttributeError):
+                            continue
+                        cell.font = Font(color="FF0000")
+        workbook.save(args.output)
+    else:
+        with pd.ExcelWriter(args.output) as writer:
+            for sheet_name, dataframe in sheet_2_dataframes.items():
+                dataframe.to_excel(writer, sheet_name=sheet_name, index=False)
 
 
 if __name__ == "__main__":
