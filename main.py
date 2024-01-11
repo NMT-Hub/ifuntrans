@@ -92,7 +92,7 @@ async def main():
 
     args = parser.parse_args()
     if args.translate_memory_file is not None:
-        await create_tm_from_excel(args.translate_memory_file)
+        tm = await create_tm_from_excel(args.translate_memory_file)
     else:
         pass
 
@@ -140,12 +140,12 @@ async def main():
                 columns_2_langcodes[column] = code
             else:
                 langcodes_2_columns = {v: k for k, v in columns_2_langcodes.items()}
-                await translate_group(dataframe, langcodes_2_columns, columns_2_langcodes, args.instructions)
+                await translate_group(dataframe, langcodes_2_columns, columns_2_langcodes, args.instructions, tm)
                 columns_2_langcodes = {column: code}
 
         if len(columns_2_langcodes) > 0:
             langcodes_2_columns = {v: k for k, v in columns_2_langcodes.items()}
-            await translate_group(dataframe, langcodes_2_columns, columns_2_langcodes, args.instructions)
+            await translate_group(dataframe, langcodes_2_columns, columns_2_langcodes, args.instructions, tm)
 
         sheet_2_dataframes[sheet_name] = dataframe
 
