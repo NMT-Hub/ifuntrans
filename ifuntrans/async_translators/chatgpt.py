@@ -190,9 +190,9 @@ async def _chatgpt_translate(
             if len(translations) != len(tgt) or cur != len(answer):
                 logger.warning(
                     f"ChatGPT Doc Translate failed. Please check the following sentences: "
-                    f"Source: {src} "
-                    f"Target: {tgt} "
-                    f"Answer: {translations} "
+                    # f"Source: {src} "
+                    # f"Target: {tgt} "
+                    # f"Answer: {translations} "
                 )
                 translations = tgt
             else:
@@ -301,7 +301,7 @@ async def normalize_language_code_as_iso639(langs: List[str]) -> List[str]:
 
     messages = [
         {"role": "system", "content": system_prompt},
-        {"role": "user", "content": ", ".join(["STR_ID", "路径", "序号", "cn", "英文", "tw", "印尼语", "备注"])},
+        {"role": "user", "content": ", ".join(["STR_ID", "路径", "序号", "cn", "英文", "tw", "印尼语", "备注", "中文", "zh繁中"])},
         {
             "role": "assistant",
             "content": "\n".join(
@@ -314,6 +314,8 @@ async def normalize_language_code_as_iso639(langs: List[str]) -> List[str]:
                     "tw: zh-TW",
                     "印尼语: id",
                     "备注: not a valid ISO 639 language name",
+                    "中文: zh",
+                    "zh繁中: zh-TW",
                 ]
             ),
         },

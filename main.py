@@ -89,21 +89,26 @@ async def main():
     parser.add_argument("-tm", "--translate-memory-file", help="The translate memory file", default=None, type=str)
     parser.add_argument("-i", "--instructions", help="The instructions prompt", default="", type=str)
     parser.add_argument("-k", "--keep-format", help="Keep the format of the original file", action="store_true")
+    parser.add_argument("-s", "--sheets", nargs="+", help="The sheet to translate", default=[])
 
     args = parser.parse_args()
     if args.translate_memory_file is not None:
         tm = await create_tm_from_excel(args.translate_memory_file)
     else:
-        pass
+        tm = None
 
     if args.output is None:
         args.output = args.file
 
     workbook = openpyxl.load_workbook(args.file)
-    sheet_names = workbook.sheetnames
+    if len(args.sheets) > 0:
+        sheet_names = [sheet_name for sheet_name in workbook.sheetnames if sheet_name in args.sheets]
+    else:
+        sheet_names = workbook.sheetnames
 
     sheet_2_dataframes = {}
     for sheet_name in sheet_names:
+        logger.info(f"Translating sheet {sheet_name}")
         # incase "None" replace by pd.NA
         dataframe = pd.read_excel(args.file, sheet_name=sheet_name, keep_default_na=False)
         # convert all columns to string
@@ -151,6 +156,7 @@ async def main():
 
     if args.keep_format:
         for sheet_name, dataframe in sheet_2_dataframes.items():
+            logger.info(f"Updating sheet {sheet_name}")
             ws = workbook[sheet_name]
             dataframe = sheet_2_dataframes[sheet_name]
             # Update the localization workbook

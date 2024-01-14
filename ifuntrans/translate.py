@@ -11,6 +11,7 @@ from opencc import OpenCC
 from ifuntrans.async_translators.chatgpt import batch_translate_texts
 from ifuntrans.characters import get_need_translate_func
 from ifuntrans.pe import post_edit
+from ifuntrans.placeholder import split_text
 
 opencc_mapping = {
     "s2hk": OpenCC("s2hk.json"),
@@ -71,9 +72,9 @@ async def translate(texts: Iterable[str], from_lang: str, to_lang: str, **kwargs
         return [opencc_convert(text, from_lang_code, to_lang_code) for text in texts]
 
     # split the texts by '\n'. In case of '\\n', replace it with '\n' first
-    splited_texts = [re.split(r"([\n\r]+)", text.replace(r'\n', '\n')) for text in texts]
+    splited_texts = [split_text(text) for text in texts]
     splited_texts_len = [len(text) for text in splited_texts]
-    texts = [text.strip() for text in chain.from_iterable(splited_texts)]
+    texts = [text for text in chain.from_iterable(splited_texts)]
 
     need_translate_func = get_need_translate_func(from_lang)
     need_translate_mask = [need_translate_func(text) for text in texts]
