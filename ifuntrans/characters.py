@@ -23,7 +23,7 @@ def need_translate_zh(text):
     # if only contains non-Chinese characters, and the length of continue A-Z and a-z is less than 2, return False
     if regex.search(r"\p{Han}", text) is None:
         all_chars = re.findall("[A-Za-z]+", text)
-        if max(map(len, all_chars)) < 2:
+        if all_chars and max(map(len, all_chars)) < 2:
             return False
 
     return True
