@@ -66,9 +66,6 @@ async def translate_group(
             lambda _: translation.pop(0)
         )
 
-    await translate_column(en_column, zh_column)
-    await translate_column(zh_column, en_column)
-
     for column in columns_2_langcodes.keys():
         if column in [zh_column, en_column]:
             continue
@@ -76,8 +73,10 @@ async def translate_group(
         lang_code = columns_2_langcodes[column]
 
         if langcodes.get(lang_code).language in ["zh", "ja", "ko"]:
+            await translate_column(en_column, zh_column)
             await translate_column(zh_column, column)
         else:
+            await translate_column(zh_column, en_column)
             await translate_column(en_column, column)
 
 
