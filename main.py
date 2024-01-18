@@ -121,9 +121,9 @@ async def main():
         dataframe.replace("nan", pd.NA, inplace=True)
         columns = dataframe.columns
 
-        # normalize the language code
-        iso_codes = await normalize_language_code_as_iso639(columns[1:])
-        iso_codes.insert(0, "und")  # the first column is the key
+        # iso_codes = await normalize_language_code_as_iso639(columns[1:])
+        # iso_codes.insert(0, "und")  # the first column is the key
+        iso_codes = await normalize_language_code_as_iso639(columns)
 
         if not langcodes.closest_supported_match("zh", iso_codes) and not langcodes.closest_supported_match(
             "en", iso_codes
