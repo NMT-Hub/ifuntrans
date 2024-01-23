@@ -67,9 +67,6 @@ async def translate_group(
         )
 
     for column in columns_2_langcodes.keys():
-        if column in [zh_column, en_column]:
-            continue
-
         lang_code = columns_2_langcodes[column]
 
         if langcodes.get(lang_code).language in ["zh", "ja", "ko"]:
