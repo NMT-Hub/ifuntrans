@@ -17,7 +17,9 @@ def split_text(text: str):
         List[str]: the sentences
     """
     text = text.replace(r"\n", "\n")
-    text = re.sub(r"[A-Za-z](\s*[\n|\r]+\s*)[A-Za-z]", _split_text_help_func, text)
+    # 这里只对较短的文本做换行符合并处理，过长的内容处理会出问题
+    if len(text.split()) < 5:
+      text = re.sub(r"[A-Za-z](\s*[\n|\r]+\s*)[A-Za-z]", _split_text_help_func, text)
     sents = re.split(r"([\n\r]+)", text)
     return sents
 
