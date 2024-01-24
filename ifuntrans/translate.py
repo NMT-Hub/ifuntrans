@@ -1,7 +1,6 @@
 """
 Translate all in one.
 """
-import re
 from itertools import chain
 from typing import Iterable, List
 

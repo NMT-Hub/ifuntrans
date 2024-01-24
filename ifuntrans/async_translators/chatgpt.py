@@ -43,7 +43,7 @@ CHATGPT_DOC_TRANSLATE_PROMPT = """
 You will be provided with sentences, and your task is to translate it into {tgt_lang}.
 
 1. Please output the translations in the same order as the input sentences (one translation per line).
-2. Please do not add or remove any punctuation marks or any numbers. For example, [/color] <br> etc.
+2. Please do not add or remove any punctuation marks or any numbers. For example, [color=#fcc44d] <br> etc.
 3. Please don't do any explaining.
 4. Please keep the unicode character representation of roman numerals in translations. e.g.: Ⅰ Ⅱ Ⅲ Ⅳ Ⅴ Ⅵ Ⅶ Ⅷ Ⅸ Ⅹ
 """  # TODO: Dynamic load abbreviations from database
@@ -124,7 +124,7 @@ async def _chatgpt_translate(
         ord_cache = {}
         query = ""
         for j, (s, _) in enumerate(zip(src, tgt)):
-            ord_matched = re.match(r"^(<[0-9A-Za-z=#]+>)*\d+[.、]", s)
+            ord_matched = re.match(r"^(\s*<[0-9A-Za-z=#]+>\s*)*[\d\s.、]+", s)
             if ord_matched:
                 ord_cache[j] = ord_matched.group(0)
                 s = s[ord_matched.end() :]
@@ -177,6 +177,7 @@ async def _chatgpt_translate(
             answer = response.strip().split("\n")
 
             src, tgt, _ = chunked[order]
+            ord_cache = ord_cache_list[order]
 
             # In case that there are multiple new lines in the source sentence
             translations = []
@@ -198,7 +199,6 @@ async def _chatgpt_translate(
             else:
                 translations = [ord_cache.get(i, "") + " " + t for i, t in enumerate(translations)]
 
-            ord_cache = ord_cache_list[order]
             fixed.append((order, translations))
 
     fixed.sort(key=lambda x: x[0])
