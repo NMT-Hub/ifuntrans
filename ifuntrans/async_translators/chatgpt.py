@@ -197,7 +197,8 @@ async def _chatgpt_translate(
                 )
                 translations = tgt
             else:
-                translations = [ord_cache.get(i, "") + " " + t for i, t in enumerate(translations)]
+                # restore ordinal numbers
+                translations = [ord_cache.get(i, "").replace('、', '.') + " " + t for i, t in enumerate(translations)]
 
             fixed.append((order, translations))
 
