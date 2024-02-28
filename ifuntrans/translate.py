@@ -79,7 +79,8 @@ async def translate(texts: Iterable[str], from_lang: str, to_lang: str, **kwargs
     need_translate_mask = [need_translate_func(text) for text in texts]
     need_translate_texts = [t for t, m in zip(texts, need_translate_mask) if m]
     translation = await batch_translate_texts(need_translate_texts, from_lang, to_lang, **kwargs)
-    translation = await post_edit(need_translate_texts, translation, from_lang, to_lang)
+    # TODO: Temporarily disabled post-editing, because it's error-prone
+    # translation = await post_edit(need_translate_texts, translation, from_lang, to_lang)
 
     result = []
     j = 0
