@@ -9,24 +9,30 @@ docker run --network="host" --name ifuntrans-redis -d redis:6.2.14
 ```
 poetry install
 ```
+准备环境变量
+```
+source .env
+```
 启动服务
 ```
 poetry run python server.py
 ```
 使用命令行翻译excel文件
 ```
-poetry run python main.py /path/to/input.xlsx --languages en,ru --source-column 1
+poetry run python main.py /path/to/input.xlsx
 ```
+其他参数使用`python main.py --help`查看
+
 ## 容器化部署
 构建镜像
 ```
 docker build -t ifuntrans .
 ```
-启动测试环境服务（其中REDIS_HOST改成redis的访问地址）
+启动测试环境服务（其中REDIS\_HOST改成redis的访问地址）
 ```
 docker run --env-file .env -e REDIS_HOST=172.26.0.3 -p 8188:8888 --name ifuntrans-test -d ifuntrans:latest
 ```
-启动正式环境服务（其中REDIS_HOST改成redis的访问地址）
+启动正式环境服务（其中REDIS\_HOST改成redis的访问地址）
 ```
 docker run --env-file .env_formal -e REDIS_HOST=172.26.0.3 -p 8189:8888 --name ifuntrans -d ifuntrans:prod
 ```
