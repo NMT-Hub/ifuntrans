@@ -21,7 +21,7 @@ def get_supported_languages() -> List[str]:
     return [d["language"] for d in data["data"]["languages"]]
 
 
-async def batch_translate_texts(texts: List[str], source_language_code: str, target_language_code: str) -> List[str]:
+async def batch_translate_texts(texts: List[str], source_language_code: str, target_language_code: str, **kwargs) -> List[str]:
     supported_languages = get_supported_languages()
     if target_language_code not in supported_languages:
         target_language_code = langcodes.closest_supported_match(target_language_code, supported_languages)

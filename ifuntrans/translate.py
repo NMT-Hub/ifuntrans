@@ -1,13 +1,15 @@
 """
 Translate all in one.
 """
+import os
 from itertools import chain
 from typing import Iterable, List
 
 import langcodes
 from opencc import OpenCC
 
-from ifuntrans.async_translators.chatgpt import batch_translate_texts
+import ifuntrans.async_translators.chatgpt as chatgpt
+import ifuntrans.async_translators.google as google
 from ifuntrans.characters import get_need_translate_func
 from ifuntrans.pe import post_edit
 from ifuntrans.placeholder import split_text
@@ -20,6 +22,15 @@ opencc_mapping = {
     "s2t": OpenCC("s2t.json"),
     "t2s": OpenCC("t2s.json"),
 }
+
+ENGEIN = os.environ.get("IFUNTRANS_ENGINE", "chatgpt")
+
+if ENGEIN == "chatgpt":
+    batch_translate_texts = chatgpt.batch_translate_texts
+elif ENGEIN == "google":
+    batch_translate_texts = google.batch_translate_texts
+else:
+    raise ValueError(f"Unknown engine {ENGEIN}")
 
 
 def opencc_convert(text, lang_from, lang_to):
