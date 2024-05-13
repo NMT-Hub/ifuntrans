@@ -5,7 +5,7 @@
 ```
 docker run --network="host" --name ifuntrans-redis -d redis:6.2.14
 ```
-安装依赖
+安装依赖（需要安装
 ```
 poetry install
 ```
@@ -21,7 +21,7 @@ poetry run python server.py
 ```
 poetry run python main.py /path/to/input.xlsx
 ```
-其他参数使用`python main.py --help`查看
+其他参数使用`python main.py --help`查看，具体使用案例见[使用案例](./docs/使用案例.md)
 
 ## 容器化部署
 构建镜像
