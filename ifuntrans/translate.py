@@ -106,7 +106,7 @@ async def translate(texts: Iterable[str], from_lang: str, to_lang: str, **kwargs
     final_result = []
     cur = 0
     for i in range(len(splited_texts)):
-        final_result.append("".join(result[cur : cur + splited_texts_len[i]]))
+        final_result.append("".join(result[cur : cur + splited_texts_len[i]]).strip())
         cur += splited_texts_len[i]
 
     return final_result

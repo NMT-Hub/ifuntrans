@@ -9,6 +9,7 @@ import pandas
 from whoosh.fields import ID, TEXT, Schema
 from whoosh.filedb.filestore import RamStorage
 from whoosh.qparser import OrGroup, QueryParser
+from whoosh.analysis import StandardAnalyzer
 
 from ifuntrans.async_translators.chatgpt import normalize_language_code_as_iso639
 from ifuntrans.tokenizer import tokenize
@@ -33,7 +34,7 @@ class TranslationMemory(object):
         langs = tm_df.columns.tolist()
         self.langs = [lang for lang in langs if lang != "und"]
 
-        columns = {lang: TEXT(stored=True) for lang in self.langs}
+        columns = {lang: TEXT(stored=True, analyzer=StandardAnalyzer(stoplist=None)) for lang in self.langs}
         origin_columns = {f"{lang}_origin": TEXT(stored=True) for lang in self.langs}
         schema = Schema(
             STR_ID=ID(stored=True),

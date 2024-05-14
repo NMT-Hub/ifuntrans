@@ -23,6 +23,12 @@ poetry run python main.py /path/to/input.xlsx
 ```
 其他参数使用`python main.py --help`查看，具体使用案例见[使用案例](./docs/使用案例.md)
 
+使用命令行翻译word文件（RTF，doc，pdf格式请用wps超级会员转换成docx格式）
+```
+poetry run python translate_docx.py /path/to/docx
+```
+其他参数使用`python translate_docx.py --help`查看，具体使用案例见[使用案例](./docs/使用案例.md)
+
 ## 容器化部署
 构建镜像
 ```
