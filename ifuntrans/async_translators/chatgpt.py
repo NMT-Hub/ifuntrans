@@ -50,18 +50,20 @@ You will be provided with sentences, and your task is to translate it into {tgt_
 
 
 async def create_chat_completion(order: int, messages: List[Dict[str, str]]):
-    try:
-        chat_completion_resp = await openai.ChatCompletion.acreate(
-            messages=messages, timeout=30, deployment_id=DEPLOYMENT_ID, temperature=0.0
-        )
-        response = chat_completion_resp.choices[0].message.content
-
-    except AttributeError:
-        logger.warning(f"ChatGPT failed: {chat_completion_resp.choices[0]}")
-        response = ""
-    except Exception as e:
-        logger.warning(f"ChatGPT failed: {e}")
-        response = ""
+    for _ in range(3):
+        try:
+            chat_completion_resp = await openai.ChatCompletion.acreate(
+                messages=messages, timeout=30, deployment_id=DEPLOYMENT_ID, temperature=0.0
+            )
+            response = chat_completion_resp.choices[0].message.content
+            break
+        except openai.error.RateLimitError as e:
+            logger.warning(f"ChatGPT RateLimitError: {e}. Sleep 60s")
+            await asyncio.sleep(60)
+            response = ""
+        except Exception as e:
+            logger.warning(f"ChatGPT failed {type(e)}: {e}")
+            response = ""
     return order, response
 
 
@@ -167,7 +169,7 @@ async def _chatgpt_translate(
     logger.debug(f"ChatGPT Translating {len(tasks)} chunks")
 
     # in case that the number of tasks is too large, we split them into windows
-    for window in windowed(tasks, 10, step=10):
+    for i, window in enumerate(windowed(tasks, 10, step=10)):
         # filter None
         window = [x for x in window if x is not None]
         for future in asyncio.as_completed(window):
