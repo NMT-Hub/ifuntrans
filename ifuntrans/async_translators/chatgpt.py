@@ -271,7 +271,11 @@ async def batch_translate_texts(
         failure_indices = [i for i, x in enumerate(translations) if x == TRANSLATION_FAILURE]
         cur_texts = [texts[i] for i in failure_indices]
         logger.warning(f"ChatGPT failed. Use Google Translate instead. {len(cur_texts)} sentences. {cur_texts}")
-        cur_translations = await google_batch_translate_texts(cur_texts, source_language_code, target_language_code)
+        try:
+            cur_translations = await google_batch_translate_texts(cur_texts, source_language_code, target_language_code)
+        except Exception as e:
+            logger.error(f"Google Translate failed: {e}")
+            cur_translations = [""] * len(cur_texts)
         for i, x in zip(failure_indices, cur_translations):
             translations[i] = x
 
